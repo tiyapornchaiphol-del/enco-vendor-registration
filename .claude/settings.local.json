@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(mkdir -p /tmp/design-extract)",
+      "Bash(tar -xzf \"C:\\\\Users\\\\z30671264\\\\.claude\\\\projects\\\\D--EnCo-Vendor-Registration\\\\3aff3772-25bf-4bed-a562-2047884f84d9\\\\tool-results\\\\webfetch-1779347577231-9zq8ab.bin\" -C /tmp/design-extract)",
+      "Read(//tmp/**)",
+      "Bash(cp \"/c/Users/z30671264/.claude/projects/D--EnCo-Vendor-Registration/3aff3772-25bf-4bed-a562-2047884f84d9/tool-results/webfetch-1779347577231-9zq8ab.bin\" /tmp/design-extract/archive.gz)",
+      "Bash(tar -xzf archive.gz)",
+      "Bash(cp /tmp/design-extract/enco-vendor-registration/project/*.jsx \"/d/EnCo Vendor Registration/\")",
+      "Bash(cp -r /tmp/design-extract/enco-vendor-registration/project/uploads \"/d/EnCo Vendor Registration/\")",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(python3 -m http.server 3000)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where npm *)",
+      "PowerShell($listener = New-Object System.Net.HttpListener; $listener.Prefixes.Add\\('http://localhost:3000/'\\); $listener.Start\\(\\); Write-Host \"Server started at http://localhost:3000\"; while \\($true\\) { $ctx = $listener.GetContext\\(\\); $req = $ctx.Request; $res = $ctx.Response; $file = $req.Url.LocalPath -replace '^/', ''; if \\([string]::IsNullOrEmpty\\($file\\)\\) { $file = 'index.html' }; $path = \"D:\\\\EnCo Vendor Registration\\\\$file\"; if \\(Test-Path $path\\) { $res.ContentType = if \\($file.EndsWith\\('.html'\\)\\) { 'text/html' } elseif \\($file.EndsWith\\('.jsx'\\)\\) { 'application/javascript' } elseif \\($file.EndsWith\\('.json'\\)\\) { 'application/json' } else { 'application/octet-stream' }; $res.OutputStream.Write\\([System.IO.File]::ReadAllBytes\\($path\\), 0, [System.IO.File]::ReadAllBytes\\($path\\).Length\\) } else { $res.StatusCode = 404; $res.OutputStream.Write\\([System.Text.Encoding]::UTF8.GetBytes\\('Not Found'\\), 0, 9\\) }; $res.OutputStream.Close\\(\\) })",
+      "mcp__Claude_in_Chrome__switch_browser",
+      "PowerShell(\\(Invoke-WebRequest -Uri http://localhost:3000 -ErrorAction SilentlyContinue\\).Content | Select-Object -First 10)",
+      "Bash(curl -s \"http://localhost:3000/vendor.jsx\")",
+      "Bash(curl -s http://localhost:3000/vendor.jsx)",
+      "Bash(curl -s http://localhost:3000/app.jsx)",
+      "Bash(curl -s http://localhost:3000/admin.jsx)"
+    ]
+  }
+}
