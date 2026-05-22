@@ -159,6 +159,112 @@ async function updateSubmissionInDb(id, updates) {
   }
 }
 
+// ─── Admin Functions ───
+
+// Get admin by email and password
+async function getAdminByEmail(email, password) {
+  try {
+    console.log('🔐 Authenticating admin:', email);
+    const { data, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .eq('password', password)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      console.error('❌ Admin auth error:', error);
+      return null;
+    }
+
+    console.log('✅ Admin authenticated:', email);
+    return data;
+  } catch (err) {
+    console.error('❌ Error getting admin:', err);
+    return null;
+  }
+}
+
+// Get all admins
+async function getAllAdmins() {
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('❌ Error getting admins:', err);
+    return [];
+  }
+}
+
+// Create new admin
+async function createAdmin(email, password, name, role = 'Admin') {
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .insert({
+        email: email.toLowerCase(),
+        password,
+        name,
+        role,
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    console.log('✅ Admin created:', email);
+    return data;
+  } catch (err) {
+    console.error('❌ Error creating admin:', err);
+    return null;
+  }
+}
+
+// Update admin
+async function updateAdmin(id, updates) {
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .update({ ...updates, updated_at: new Date() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    console.log('✅ Admin updated:', id);
+    return data;
+  } catch (err) {
+    console.error('❌ Error updating admin:', err);
+    return null;
+  }
+}
+
+// Delete admin (soft delete - set is_active to false)
+async function deactivateAdmin(id) {
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .update({ is_active: false, updated_at: new Date() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    console.log('✅ Admin deactivated:', id);
+    return data;
+  } catch (err) {
+    console.error('❌ Error deactivating admin:', err);
+    return null;
+  }
+}
+
 // Export functions
 Object.assign(window, {
   supabase,
@@ -166,5 +272,10 @@ Object.assign(window, {
   getAnnouncementsFromDb,
   getCategoriesFromDb,
   createSubmissionInDb,
-  updateSubmissionInDb
+  updateSubmissionInDb,
+  getAdminByEmail,
+  getAllAdmins,
+  createAdmin,
+  updateAdmin,
+  deactivateAdmin
 });

@@ -1,20 +1,39 @@
 // Main app shell: sidebar nav + page routing + Tweaks panel + topbar.
 
-// Demo admin account
-const ADMIN_ACCOUNTS = [
-  { email: "admin@enco.co.th", password: "admin123", name: "Administrator", role: "Super Admin", permissions: ["approve","request-docs","manage-announcements","manage-groups","manage-users","manage-admins"] },
-];
-
 function AdminLoginForm({ onLogin, onCancel }) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [err, setErr] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
 
-  const login = () => {
-    const account = ADMIN_ACCOUNTS.find(a => a.email === email.trim() && a.password === password);
-    if (!account) { setErr("อีเมลหรือรหัสผ่านไม่ถูกต้อง"); return; }
+  const login = async () => {
+    setLoading(true);
     setErr("");
-    onLogin(account);
+
+    try {
+      // Query admin from Supabase
+      const admin = await window.getAdminByEmail(email.trim(), password);
+
+      if (!admin) {
+        setErr("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+        setLoading(false);
+        return;
+      }
+
+      // Login success - convert database format to app format
+      onLogin({
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
+        permissions: admin.permissions || []
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      setErr("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -25,14 +44,16 @@ function AdminLoginForm({ onLogin, onCancel }) {
             display: "block", marginBottom: 6 }}>อีเมล</label>
           <input className="input" type="email" value={email}
             onChange={e => setEmail(e.target.value)} placeholder="your@enco.co.th"
-            onKeyDown={e => e.key === "Enter" && login()} style={{ width: "100%" }} />
+            disabled={loading}
+            onKeyDown={e => e.key === "Enter" && !loading && login()} style={{ width: "100%" }} />
         </div>
         <div>
           <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)",
             display: "block", marginBottom: 6 }}>รหัสผ่าน</label>
           <input className="input" type="password" value={password}
             onChange={e => setPassword(e.target.value)} placeholder="••••••••"
-            onKeyDown={e => e.key === "Enter" && login()} style={{ width: "100%" }} />
+            disabled={loading}
+            onKeyDown={e => e.key === "Enter" && !loading && login()} style={{ width: "100%" }} />
         </div>
         {err && (
           <div style={{ padding: "10px 14px", background: "var(--danger-soft)",
@@ -41,8 +62,8 @@ function AdminLoginForm({ onLogin, onCancel }) {
             ✕ {err}
           </div>
         )}
-        <button className="btn btn-primary" onClick={login} style={{ marginTop: 4 }}>
-          เข้าสู่ระบบ
+        <button className="btn btn-primary" onClick={login} disabled={loading} style={{ marginTop: 4 }}>
+          {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
         </button>
       </div>
       <div style={{ marginTop: 16, padding: "10px 14px", background: "var(--surface-2)",
