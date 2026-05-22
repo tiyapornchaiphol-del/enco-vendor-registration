@@ -102,6 +102,32 @@ function computeAnnoStatus(closedAt, openedAt) {
 }
 
 function AdminDashboard({ goto }) {
+  const data = useData();
+  const submissions = data?.submissions || [];
+
+  // Calculate real statistics
+  const totalCount = submissions.length;
+  const newCount = submissions.filter(s => s.status === "new").length;
+  const reviewCount = submissions.filter(s => s.status === "review").length;
+  const approvedCount = submissions.filter(s => s.status === "approved").length;
+  const rejectedCount = submissions.filter(s => s.status === "rejected").length;
+  const docPendingCount = submissions.filter(s => s.docsPending === true || s.status === "review").length;
+
+  // Calculate percentage of approved
+  const approvedPercent = totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0;
+
+  // Generate recent activities from submissions
+  const recentActivities = submissions
+    .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+    .slice(0, 5)
+    .map(s => ({
+      who: "ระบบ",
+      what: s.status === "approved" ? "อนุมัติใบสมัคร" : s.status === "new" ? "รับใบสมัครใหม่" : s.status === "review" ? "กำลังตรวจสอบ" : "ปฏิเสธใบสมัคร",
+      who2: s.company || "บริษัท",
+      submittedAt: s.submittedAt,
+      type: s.status === "approved" ? "approve" : s.status === "rejected" ? "reject" : s.status === "review" ? "request" : "new",
+    }));
+
   return (
     <div className="fade-in">
       <SectionHeader
@@ -123,10 +149,10 @@ function AdminDashboard({ goto }) {
       {/* Stats row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
         gap: 14, marginBottom: 24 }}>
-        <StatCard label="ผู้สมัครทั้งหมด" value="142" sub="ปีงบประมาณ 2569" />
-        <StatCard label="รอตรวจสอบ" value="18" sub="+4 ภายใน 24 ชม." accent="oklch(58% 0.13 70)" />
-        <StatCard label="อนุมัติแล้ว" value="89" sub="62.7% ของยอดทั้งหมด" accent="oklch(52% 0.13 155)" />
-        <StatCard label="รอเอกสารเพิ่ม" value="24" sub="อยู่ระหว่างดำเนินการ" accent="oklch(55% 0.14 250)" />
+        <StatCard label="ผู้สมัครทั้งหมด" value={totalCount.toString()} sub="ปีงบประมาณ 2569" />
+        <StatCard label="รอตรวจสอบ" value={newCount.toString()} sub={`+${newCount} รายการ`} accent="oklch(58% 0.13 70)" />
+        <StatCard label="อนุมัติแล้ว" value={approvedCount.toString()} sub={`${approvedPercent}% ของยอดทั้งหมด`} accent="oklch(52% 0.13 155)" />
+        <StatCard label="รอเอกสารเพิ่ม" value={docPendingCount.toString()} sub="อยู่ระหว่างดำเนินการ" accent="oklch(55% 0.14 250)" />
       </div>
 
       {/* Two-col layout: pipeline chart + recent activity */}
@@ -148,7 +174,7 @@ function AdminDashboard({ goto }) {
               <LegendDot color="oklch(52% 0.13 155)" label="อนุมัติ" />
             </div>
           </div>
-          <BarChart />
+          <BarChart submissions={submissions} />
         </div>
         {/* Recent activity */}
         <div className="card" style={{ padding: 20 }}>
@@ -157,13 +183,7 @@ function AdminDashboard({ goto }) {
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>กิจกรรมล่าสุด</h3>
             <a href="#" style={{ fontSize: 12.5, color: "var(--primary)" }}>ดูทั้งหมด</a>
           </div>
-          {[
-            { who: "คุณอาภา", what: "อนุมัติใบสมัคร", who2: "เซฟการ์ด บริการ", time: "5 นาทีที่แล้ว", type: "approve" },
-            { who: "ระบบ", what: "รับใบสมัครใหม่", who2: "พาวเวอร์เน็ต เทคโนโลยี", time: "1 ชม.ที่แล้ว", type: "new" },
-            { who: "คุณกิตติ", what: "ขอเอกสารเพิ่ม", who2: "สมาร์ทไอที", time: "3 ชม.ที่แล้ว", type: "request" },
-            { who: "ระบบ", what: "Vendor อัปโหลดเอกสารเพิ่ม", who2: "สมาร์ทไอที", time: "4 ชม.ที่แล้ว", type: "request" },
-            { who: "ระบบ", what: "เผยแพร่ประกาศใหม่", who2: "AN-2026-014", time: "เมื่อวาน", type: "new" },
-          ].map((a, i) => (
+          {recentActivities.map((a, i) => (
             <div key={i} style={{ display: "flex", gap: 12, padding: "10px 0",
               borderTop: i === 0 ? "none" : "1px solid var(--line-2)" }}>
               <div style={{
@@ -186,7 +206,9 @@ function AdminDashboard({ goto }) {
                   <b>{a.who}</b> <span style={{ color: "var(--text-2)" }}>{a.what}</span>{" "}
                   <span style={{ color: "var(--text)" }}>{a.who2}</span>
                 </div>
-                <div style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 2 }}>{a.time}</div>
+                <div style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 2 }}>
+                  {formatTimeAgo(a.submittedAt)}
+                </div>
               </div>
             </div>
           ))}
@@ -200,17 +222,38 @@ function AdminDashboard({ goto }) {
           <div>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>ใบสมัครที่รอดำเนินการ</h3>
             <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
-              18 รายการรอตรวจสอบ · 4 รายการต้องการเอกสารเพิ่ม
+              {newCount} รายการรอตรวจสอบ · {docPendingCount} รายการต้องการเอกสารเพิ่ม
             </p>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={() => goto("admin-submissions")}>
             ดูทั้งหมด <Icon name="arrowRight" size={14} />
           </button>
         </div>
-        <SubmissionsTable rows={SUBMISSIONS.slice(0, 5)} goto={goto} />
+        <SubmissionsTable rows={submissions.slice(0, 5)} goto={goto} />
       </div>
     </div>
   );
+}
+
+// Helper function to format time ago in Thai
+function formatTimeAgo(dateStr) {
+  if (!dateStr) return "เมื่อไม่นานมานี้";
+  const now = new Date();
+  const date = new Date(dateStr);
+  const seconds = Math.floor((now - date) / 1000);
+
+  if (seconds < 60) return "เมื่อตอนนี้";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} นาทีที่แล้ว`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ชม.ที่แล้ว`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "เมื่อวาน";
+  if (days < 7) return `${days} วันที่แล้ว`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 4) return `${weeks} สัปดาห์ที่แล้ว`;
+  const months = Math.floor(days / 30);
+  return `${months} เดือนที่แล้ว`;
 }
 
 const LegendDot = ({ color, label }) => (
@@ -220,22 +263,47 @@ const LegendDot = ({ color, label }) => (
   </span>
 );
 
-const BarChart = () => {
-  const data = [
-    { m: "ธ.ค.", a: 8, b: 4, c: 14, d: 1 },
-    { m: "ม.ค.", a: 10, b: 6, c: 18, d: 2 },
-    { m: "ก.พ.", a: 12, b: 8, c: 20, d: 2 },
-    { m: "มี.ค.", a: 14, b: 10, c: 24, d: 3 },
-    { m: "เม.ย.", a: 18, b: 12, c: 22, d: 1 },
-    { m: "พ.ค.", a: 22, b: 18, c: 19, d: 2 },
-  ];
-  const max = Math.max(...data.map(d => d.a + d.b + d.c + d.d));
+const BarChart = ({ submissions = [] }) => {
+  // Calculate monthly data from submissions
+  const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+
+  // Get last 6 months
+  const now = new Date();
+  const last6Months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    last6Months.push(d);
+  }
+
+  // Count submissions by month and status
+  const monthlyData = last6Months.map(monthDate => {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 1);
+
+    const monthSubmissions = submissions.filter(s => {
+      const subDate = new Date(s.submittedAt || s.createdAt || new Date());
+      return subDate >= monthStart && subDate < monthEnd;
+    });
+
+    return {
+      m: thaiMonths[month],
+      a: monthSubmissions.filter(s => s.status === "new").length,           // new (ส่งใหม่)
+      b: monthSubmissions.filter(s => s.status === "review").length,        // review (ตรวจสอบ)
+      c: monthSubmissions.filter(s => s.status === "approved").length,      // approved (อนุมัติ)
+      d: monthSubmissions.filter(s => s.status === "rejected").length,      // rejected (ปฏิเสธ)
+    };
+  });
+
+  const max = Math.max(...monthlyData.map(d => d.a + d.b + d.c + d.d), 1);
+
   return (
     <div style={{ height: 220, display: "flex", alignItems: "flex-end",
       gap: 18, padding: "8px 0 0" }}>
-      {data.map((d, i) => {
+      {monthlyData.map((d, i) => {
         const total = d.a + d.b + d.c + d.d;
-        const h = (total / max) * 100;
+        const h = total > 0 ? (total / max) * 100 : 4;
         return (
           <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column",
             alignItems: "center", gap: 8 }}>
@@ -244,10 +312,14 @@ const BarChart = () => {
               display: "flex", flexDirection: "column",
               borderRadius: "6px 6px 0 0", overflow: "hidden",
               boxShadow: "var(--shadow-sm)" }}>
-              <div style={{ flex: d.a, background: "var(--primary)" }} />
-              <div style={{ flex: d.b, background: "oklch(58% 0.13 70)" }} />
-              <div style={{ flex: d.c, background: "oklch(52% 0.13 155)" }} />
-              <div style={{ flex: d.d, background: "var(--line)" }} />
+              {total > 0 && (
+                <>
+                  {d.a > 0 && <div style={{ flex: d.a, background: "var(--primary)" }} />}
+                  {d.b > 0 && <div style={{ flex: d.b, background: "oklch(58% 0.13 70)" }} />}
+                  {d.c > 0 && <div style={{ flex: d.c, background: "oklch(52% 0.13 155)" }} />}
+                  {d.d > 0 && <div style={{ flex: d.d, background: "var(--line)" }} />}
+                </>
+              )}
             </div>
             <div style={{ fontSize: 11.5, color: "var(--text-2)", fontWeight: 500 }}>{d.m}</div>
           </div>

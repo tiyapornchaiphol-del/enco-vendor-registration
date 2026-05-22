@@ -988,6 +988,9 @@ const SubmittedScreen = ({ goto, submissionId }) => (
 
 // ── Track status (no login — verify by ID + tax ID/email) ───────────────────
 function VendorTrack({ goto }) {
+  const data = useData();
+  const submissions = data?.submissions || [];
+
   const [refNo, setRefNo] = React.useState("");
   const [verify, setVerify] = React.useState("");
   const [result, setResult] = React.useState(null);
@@ -1001,9 +1004,9 @@ function VendorTrack({ goto }) {
       setError("กรุณากรอกเลขที่ใบสมัครและเลขผู้เสียภาษี/อีเมล");
       return;
     }
-    const found = SUBMISSIONS.find(s =>
+    const found = submissions.find(s =>
       s.id.toUpperCase() === ref &&
-      (s.taxId === v || s.email.toLowerCase() === v)
+      (s.taxId === v || s.email?.toLowerCase() === v)
     );
     if (!found) {
       setError("ไม่พบใบสมัคร — กรุณาตรวจสอบเลขที่ใบสมัครและข้อมูลยืนยันตัวตน");
