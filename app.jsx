@@ -83,12 +83,47 @@ function AdminLoginForm({ onLogin, onCancel }) {
 
 function App() {
   const [t, setTweak] = useTweaks(window.TWEAK_DEFAULTS);
-  const [adminUser, setAdminUser] = React.useState(null);
+  const [adminUser, setAdminUser] = React.useState(() => {
+    // Restore admin session from localStorage
+    try {
+      const saved = localStorage.getItem("enco_admin_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
   const [showAdminLogin, setShowAdminLogin] = React.useState(false);
   const isAdmin = adminUser !== null;
-  const [page, setPage] = React.useState("landing");
-  const [detailId, setDetailId] = React.useState(null);
+
+  // Restore last page from localStorage
+  const [page, setPage] = React.useState(() => {
+    try {
+      const isAdminSaved = !!localStorage.getItem("enco_admin_user");
+      const savedPage = localStorage.getItem("enco_page") || "landing";
+      // Only restore admin pages if admin is logged in
+      if (savedPage.startsWith("admin") && !isAdminSaved) return "landing";
+      return savedPage;
+    } catch { return "landing"; }
+  });
+  const [detailId, setDetailId] = React.useState(() => {
+    try { return localStorage.getItem("enco_detail_id") || null; } catch { return null; }
+  });
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+
+  // Save page to localStorage on change
+  React.useEffect(() => {
+    try {
+      localStorage.setItem("enco_page", page);
+      if (detailId) localStorage.setItem("enco_detail_id", detailId);
+      else localStorage.removeItem("enco_detail_id");
+    } catch {}
+  }, [page, detailId]);
+
+  // Save admin session to localStorage
+  React.useEffect(() => {
+    try {
+      if (adminUser) localStorage.setItem("enco_admin_user", JSON.stringify(adminUser));
+      else localStorage.removeItem("enco_admin_user");
+    } catch {}
+  }, [adminUser]);
 
   // Fetch data from Supabase (includes groups, announcements, submissions, categories)
   const {
