@@ -42,39 +42,10 @@ const ANNC_STATUS_LABEL = {
   closed:  { th: "ปิดรับสมัคร",  en: "Closed",        cls: "st-draft"    },
 };
 
-const TIMELINE = [
-  { id: 1, date: "18 ก.ค. 2569 09:24", actor: "ระบบ",                    action: "รับใบสมัครเรียบร้อย",            note: "ใบสมัครเลขที่ AVL-26-0142" },
-  { id: 2, date: "18 ก.ค. 2569 11:08", actor: "ฝ่ายจัดซื้อ EnCo",          action: "เริ่มตรวจสอบเอกสาร Pre-Qualification", note: "มอบหมายให้ คุณอาภา ดูแล" },
-  { id: 3, date: "19 ก.ค. 2569 14:30", actor: "คุณอาภา ผู้ตรวจสอบ",        action: "ขอเอกสารเพิ่มเติม",              note: "ขอใบรับรองมาตรฐานการรักษาความปลอดภัย ฉบับล่าสุด" },
-  { id: 4, date: "20 ก.ค. 2569 10:15", actor: "เซฟการ์ด ซีเคียวริตี้",       action: "อัปโหลดเอกสารเพิ่มเติม",         note: "Security_Cert_2025.pdf" },
-];
-
-// Approved Vendor List documents (PDFs published by EnCo, downloadable)
-const AVL_REGISTRY_DOCS = [
-  { id: "avl-2568-3",  period: "ครั้งที่ 3/2568",  publishedAt: "15 ธ.ค. 2568", vendors: 47,
-    file: "EnCo_AVL_Registry_2568_3.pdf", size: "1.8 MB" },
-  { id: "avl-2568-2",  period: "ครั้งที่ 2/2568",  publishedAt: "20 ก.ย. 2568", vendors: 34,
-    file: "EnCo_AVL_Registry_2568_2.pdf", size: "1.5 MB" },
-  { id: "avl-2568-1",  period: "ครั้งที่ 1/2568",  publishedAt: "30 มิ.ย. 2568", vendors: 28,
-    file: "EnCo_AVL_Registry_2568_1.pdf", size: "1.3 MB" },
-  { id: "avl-2567-2",  period: "ครั้งที่ 2/2567",  publishedAt: "12 ธ.ค. 2567", vendors: 22,
-    file: "EnCo_AVL_Registry_2567_2.pdf", size: "1.2 MB" },
-  { id: "avl-2567-1",  period: "ครั้งที่ 1/2567",  publishedAt: "5 ส.ค. 2567",  vendors: 19,
-    file: "EnCo_AVL_Registry_2567_1.pdf", size: "1.1 MB" },
-];
-
-// Pre-Qualification document templates per vendor group
-const PREQ_DOCS = {
-  security: { name: "Pre-Qualification_งานรักษาความปลอดภัย.docx", size: "96 KB" },
-  cleaning: { name: "Pre-Qualification_งานรักษาความสะอาด.docx",   size: "92 KB" },
-  repair:   { name: "Pre-Qualification_งานซ่อมแซมทั่วไป.docx",     size: "108 KB" },
-  interior: { name: "Pre-Qualification_งานตกแต่งภายใน.docx",       size: "104 KB" },
-};
 
 Object.assign(window, {
   VENDOR_CATEGORIES, ANNOUNCEMENTS, REQUIRED_DOCS, SUBMISSIONS,
-  STATUS_LABEL, ANNC_STATUS_LABEL, TIMELINE,
-  AVL_REGISTRY_DOCS, PREQ_DOCS,
+  STATUS_LABEL, ANNC_STATUS_LABEL,
 });
 
 // Shared data context — App owns mutable copies of groups + announcements
