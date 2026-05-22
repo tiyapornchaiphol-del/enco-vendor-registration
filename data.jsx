@@ -102,116 +102,7 @@ const REQUIRED_DOCS = [
   { id: "profile",th: "Company Profile",                              required: true },
 ];
 
-const SUBMISSIONS = [
-  {
-    id: "AVL-26-0142", annoId: "AVL-1/2569",
-    company: "เซฟการ์ด ซีเคียวริตี้ จำกัด", taxId: "0105556012345",
-    category: "งานรักษาความปลอดภัย",
-    address: "999/12 ถนนพระราม 9", subDistrict: "ห้วยขวาง", district: "ห้วยขวาง",
-    province: "กรุงเทพมหานคร", postcode: "10310",
-    phone: "02-555-1234", mobile: "081-234-5678",
-    companyEmail: "contact@safeguard.co.th", capital: "20,000,000", yearsInBusiness: 12,
-    contact: "วิชัย รัตนพงษ์", position: "ผู้จัดการฝ่ายขาย",
-    email: "wichai@safeguard.co.th", contactPhone: "081-234-5678",
-    submittedAt: "18 ก.ค. 2569", status: "review",   completeness: 92,  docs: 6, missing: 1,
-  },
-  {
-    id: "AVL-26-0141", annoId: "AVL-1/2569",
-    company: "คลีนพลัส เซอร์วิส", taxId: "0105560054321",
-    category: "งานรักษาความสะอาด",
-    address: "45/3 ถนนลาดพร้าว", subDistrict: "จตุจักร", district: "จตุจักร",
-    province: "กรุงเทพมหานคร", postcode: "10900",
-    phone: "02-234-5678", mobile: "081-234-5678",
-    companyEmail: "info@cleanplus.co.th", capital: "5,000,000", yearsInBusiness: 7,
-    contact: "สมศักดิ์ ใจดี", position: "กรรมการผู้จัดการ",
-    email: "somsak@cleanplus.co.th", contactPhone: "081-234-5678",
-    submittedAt: "18 ก.ค. 2569", status: "new",      completeness: 100, docs: 7, missing: 0,
-  },
-  {
-    id: "AVL-26-0140", annoId: "AVL-3/2569",
-    company: "เมก้าฟิกซ์ เอ็นจิเนียริ่ง", taxId: "0105549987654",
-    category: "งานปรับปรุง-ซ่อมแซมทั่วไป",
-    address: "123 ถนนบางนา-ตราด กม.8", subDistrict: "บางนา", district: "บางนา",
-    province: "กรุงเทพมหานคร", postcode: "10260",
-    phone: "02-888-4567", mobile: "089-888-4567",
-    companyEmail: "info@megafix.com", capital: "50,000,000", yearsInBusiness: 18,
-    contact: "กชกร แสงทอง", position: "ผู้อำนวยการฝ่ายขาย",
-    email: "kotchakorn@megafix.com", contactPhone: "089-888-4567",
-    submittedAt: "17 ก.ค. 2569", status: "approved", completeness: 100, docs: 5, missing: 0,
-  },
-  {
-    id: "AVL-26-0139", annoId: "AVL-3/2569",
-    company: "อินทีเรียร์ ดีไซน์ สตูดิโอ", taxId: "0105561112233",
-    category: "งานปรับปรุง-ซ่อมแซมตกแต่งภายใน",
-    address: "77/5 ซอยสุขุมวิท 31", subDistrict: "คลองเตยเหนือ", district: "วัฒนา",
-    province: "กรุงเทพมหานคร", postcode: "10110",
-    phone: "02-610-3344", mobile: "086-789-0123",
-    companyEmail: "info@indesign.co.th", capital: "3,000,000", yearsInBusiness: 5,
-    contact: "ธนพล ศรีสุข", position: "ผู้จัดการโครงการ",
-    email: "tanapol@indesign.co.th", contactPhone: "086-789-0123",
-    submittedAt: "17 ก.ค. 2569", status: "review",   completeness: 85,  docs: 4, missing: 1,
-  },
-  {
-    id: "AVL-26-0138", annoId: "AVL-2/2569",
-    company: "ครีเอทีฟ บิวด์ แอนด์ ดีโค", taxId: "0105558443322",
-    category: "งานปรับปรุง-ซ่อมแซมตกแต่งภายใน",
-    address: "34/18 ถนนนวมินทร์", subDistrict: "นวมินทร์", district: "บึงกุ่ม",
-    province: "กรุงเทพมหานคร", postcode: "10230",
-    phone: "02-374-5566", mobile: "091-345-6789",
-    companyEmail: "hello@creativebuild.co", capital: "2,000,000", yearsInBusiness: 3,
-    contact: "พิมพ์ใจ ทองคำ", position: "ผู้จัดการทั่วไป",
-    email: "pim@creativebuild.co", contactPhone: "091-345-6789",
-    submittedAt: "16 ก.ค. 2569", status: "review",   completeness: 60,  docs: 3, missing: 3,
-  },
-  {
-    id: "AVL-26-0137", annoId: "AVL-2/2569",
-    company: "พรีเมียร์การ์ด แอนด์ เซอร์วิส", taxId: "0105545667788",
-    category: "งานรักษาความปลอดภัย",
-    address: "56/2 ถนนแจ้งวัฒนะ", subDistrict: "ทุ่งสองห้อง", district: "หลักสี่",
-    province: "กรุงเทพมหานคร", postcode: "10210",
-    phone: "02-456-7890", mobile: "086-456-7890",
-    companyEmail: "contact@premierguard.co.th", capital: "15,000,000", yearsInBusiness: 22,
-    contact: "นภา สุขใจ", position: "ผู้จัดการฝ่ายพัฒนาธุรกิจ",
-    email: "napa@premierguard.co.th", contactPhone: "086-456-7890",
-    submittedAt: "16 ก.ค. 2569", status: "approved", completeness: 100, docs: 6, missing: 0,
-  },
-  {
-    id: "AVL-26-0136", annoId: "AVL-1/2569",
-    company: "อีโคคลีน เซอร์วิส", taxId: "0105563009987",
-    category: "งานรักษาความสะอาด",
-    address: "89/1 ถนนรัชดาภิเษก", subDistrict: "ลาดยาว", district: "จตุจักร",
-    province: "กรุงเทพมหานคร", postcode: "10900",
-    phone: "02-513-4455", mobile: "087-654-3210",
-    companyEmail: "info@ecoclean.co.th", capital: "4,000,000", yearsInBusiness: 8,
-    contact: "รัฐพล มั่นคง", position: "กรรมการผู้จัดการ",
-    email: "rattapon@ecoclean.co.th", contactPhone: "087-654-3210",
-    submittedAt: "15 ก.ค. 2569", status: "approved", completeness: 100, docs: 5, missing: 0,
-  },
-  {
-    id: "AVL-26-0135", annoId: "AVL-1/2569",
-    company: "ฟิกซ์แอนด์ฟาส เอ็นเตอร์ไพรส์", taxId: "0105541223344",
-    category: "งานปรับปรุง-ซ่อมแซมทั่วไป",
-    address: "12/7 ถนนเพชรบุรี", subDistrict: "มักกะสัน", district: "ราษฎร์บูรณะ",
-    province: "กรุงเทพมหานคร", postcode: "10400",
-    phone: "02-310-8899", mobile: "083-210-9876",
-    companyEmail: "info@fixandfast.com", capital: "8,000,000", yearsInBusiness: 10,
-    contact: "วรัญญา ใจกล้า", position: "ผู้จัดการฝ่ายขาย",
-    email: "waranya@fixandfast.com", contactPhone: "083-210-9876",
-    submittedAt: "15 ก.ค. 2569", status: "review",   completeness: 90,  docs: 5, missing: 1,
-  },
-  {
-    id: "AVL-26-0134", annoId: "AVL-1/2569",
-    company: "โฮม เดคคอร์ พลัส", taxId: "0105557998877",
-    category: "งานปรับปรุง-ซ่อมแซมตกแต่งภายใน",
-    address: "201/3 ถนนเอกมัย", subDistrict: "คลองเตยเหนือ", district: "วัฒนา",
-    province: "กรุงเทพมหานคร", postcode: "10110",
-    phone: "02-711-2233", mobile: "095-432-1098",
-    companyEmail: "hello@homedecor.co", capital: "1,500,000", yearsInBusiness: 4,
-    contact: "กษิดิ์เดช ทรัพย์ดี", position: "ผู้บริหาร",
-    email: "kasidet@homedecor.co", contactPhone: "095-432-1098",
-    submittedAt: "14 ก.ค. 2569", status: "new",      completeness: 100, docs: 6, missing: 0,
-  },
-];
+const SUBMISSIONS = [];
 
 const STATUS_LABEL = {
   draft:    { th: "ร่าง",            en: "Draft",        cls: "st-draft"    },
@@ -266,4 +157,60 @@ Object.assign(window, {
 // so Admin edits propagate to Vendor views in real-time.
 const DataContext = React.createContext(null);
 const useData = () => React.useContext(DataContext);
-Object.assign(window, { DataContext, useData });
+
+// Custom hook to fetch data from Supabase
+function useSupabaseData() {
+  const [submissions, setSubmissions] = React.useState([]);
+  const [announcements, setAnnouncements] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        console.log('📡 Loading data from Supabase...');
+        console.log('window.getSubmissionsFromDb:', typeof window.getSubmissionsFromDb);
+        console.log('window.getAnnouncementsFromDb:', typeof window.getAnnouncementsFromDb);
+
+        // Fetch submissions and announcements from Supabase
+        const subsData = await window.getSubmissionsFromDb?.();
+        const annData = await window.getAnnouncementsFromDb?.();
+
+        console.log('✅ Supabase data loaded:', { subsData: subsData?.length, annData: annData?.length });
+
+        setSubmissions(subsData || []);
+        setAnnouncements(annData || []);
+      } catch (err) {
+        console.error('❌ Error loading Supabase data:', err);
+        setError(err.message);
+        // Fallback to hardcoded data if Supabase fails
+        console.log('⚠️ Using fallback hardcoded data');
+        setSubmissions(SUBMISSIONS);
+        setAnnouncements(ANNOUNCEMENTS);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // If announcements from Supabase are incomplete, use hardcoded
+  const finalAnnouncements = (announcements && announcements.length > 0 && announcements[0]?.categories)
+    ? announcements
+    : ANNOUNCEMENTS;
+
+  return {
+    submissions: submissions && submissions.length > 0 ? submissions : [],
+    setSubmissions,
+    announcements: finalAnnouncements,
+    setAnnouncements,
+    loading,
+    error
+  };
+}
+
+Object.assign(window, { DataContext, useData, useSupabaseData });

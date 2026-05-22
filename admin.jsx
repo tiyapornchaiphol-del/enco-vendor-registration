@@ -259,11 +259,14 @@ const BarChart = () => {
 
 
 // ── Export modal ────────────────────────────────────────────────────────────
-function ExportModal({ onClose, announcements }) {
+function ExportModal({ onClose, announcements, submissions }) {
   const [annoFilter, setAnnoFilter] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState("all");
 
-  const filtered = SUBMISSIONS.filter(s =>
+  // Use submissions from context, fallback to SUBMISSIONS
+  const allSubmissions = submissions && submissions.length > 0 ? submissions : SUBMISSIONS;
+
+  const filtered = allSubmissions.filter(s =>
     (annoFilter === "all" || s.annoId === annoFilter) &&
     (statusFilter === "all" || s.status === statusFilter)
   );
@@ -389,19 +392,22 @@ function ExportModal({ onClose, announcements }) {
 
 // ── Submissions list ────────────────────────────────────────────────────────
 function AdminSubmissions({ goto }) {
-  const { announcements } = useData();
+  const { announcements, submissions } = useData();
   const [filter, setFilter] = React.useState("all");
   const [annoFilter, setAnnoFilter] = React.useState("all");
   const [search, setSearch] = React.useState("");
   const [showExport, setShowExport] = React.useState(false);
 
+  // Use submissions from context, fallback to SUBMISSIONS
+  const allSubmissions = submissions && submissions.length > 0 ? submissions : SUBMISSIONS;
+
   const filters = [
-    { id: "all",      label: "ทั้งหมด",  count: SUBMISSIONS.length },
-    { id: "new",      label: "ใหม่",      count: SUBMISSIONS.filter(s => s.status === "new").length },
-    { id: "review",   label: "ตรวจสอบ",  count: SUBMISSIONS.filter(s => s.status === "review").length },
-    { id: "approved", label: "อนุมัติ",  count: SUBMISSIONS.filter(s => s.status === "approved").length },
+    { id: "all",      label: "ทั้งหมด",  count: allSubmissions.length },
+    { id: "new",      label: "ใหม่",      count: allSubmissions.filter(s => s.status === "new").length },
+    { id: "review",   label: "ตรวจสอบ",  count: allSubmissions.filter(s => s.status === "review").length },
+    { id: "approved", label: "อนุมัติ",  count: allSubmissions.filter(s => s.status === "approved").length },
   ];
-  const rows = SUBMISSIONS.filter(s =>
+  const rows = allSubmissions.filter(s =>
     (filter === "all" || s.status === filter) &&
     (annoFilter === "all" || s.annoId === annoFilter) &&
     (search === "" || s.company.includes(search) || s.id.includes(search) || s.taxId.includes(search))
@@ -410,7 +416,7 @@ function AdminSubmissions({ goto }) {
   return (
     <div className="fade-in">
       {showExport && (
-        <ExportModal announcements={announcements} onClose={() => setShowExport(false)} />
+        <ExportModal announcements={announcements} submissions={allSubmissions} onClose={() => setShowExport(false)} />
       )}
 
       <SectionHeader
@@ -529,7 +535,9 @@ const SubmissionsTable = ({ rows, goto, full = false }) => (
 
 // ── Submission detail ───────────────────────────────────────────────────────
 function AdminDetail({ goto, id }) {
-  const base = SUBMISSIONS.find(x => x.id === id) || SUBMISSIONS[0];
+  const { submissions } = useData();
+  const allSubmissions = submissions && submissions.length > 0 ? submissions : SUBMISSIONS;
+  const base = allSubmissions.find(x => x.id === id) || allSubmissions[0];
   const [status, setStatus] = React.useState(base.status);
   const [tab, setTab] = React.useState("info");
   const [requestingDocs, setRequestingDocs] = React.useState(false);

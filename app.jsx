@@ -74,10 +74,13 @@ function App() {
 
   // Shared mutable data (admin can edit groups + announcements; vendor views read)
   const [groups, setGroups] = React.useState(VENDOR_CATEGORIES);
-  const [announcements, setAnnouncements] = React.useState(ANNOUNCEMENTS);
   const [registryDocs, setRegistryDocs] = React.useState(AVL_REGISTRY_DOCS);
+
+  // Fetch data from Supabase
+  const { submissions, setSubmissions, announcements, setAnnouncements, loading, error } = useSupabaseData();
+
   const dataValue = { groups, setGroups, announcements, setAnnouncements,
-    registryDocs, setRegistryDocs };
+    registryDocs, setRegistryDocs, submissions, setSubmissions, loading, error };
 
   // Sync primary color to CSS var
   React.useEffect(() => {

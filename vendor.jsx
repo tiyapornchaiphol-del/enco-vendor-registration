@@ -12,9 +12,12 @@ function simDownload(filename) {
 // ── Landing / announcement page ─────────────────────────────────────────────
 function VendorLanding({ goto }) {
   const { groups, announcements } = useData();
-  const open = announcements.filter(a => a.status !== "closed");
-  const past = announcements.filter(a => a.status === "closed");
-  const groupById = Object.fromEntries(groups.map(g => [g.id, g]));
+  const annList = announcements || ANNOUNCEMENTS;
+  const groupList = groups || VENDOR_CATEGORIES;
+  console.log('🎯 VendorLanding:', { annList: annList?.length, groupList: groupList?.length });
+  const open = (annList || []).filter(a => a.status !== "closed");
+  const past = (annList || []).filter(a => a.status === "closed");
+  const groupById = Object.fromEntries((groupList || []).map(g => [g.id, g]));
 
   return (
     <div className="fade-in">
@@ -62,11 +65,11 @@ function VendorLanding({ goto }) {
       <div id="announcements-feed" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between",
         marginBottom: 14, gap: 16 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>ประกาศรับสมัครที่เปิดอยู่</h2>
-        <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{open.length} ฉบับ</span>
+        <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{(open || []).length} ฉบับ</span>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 40 }}>
-        {open.map(a => (
+        {(open || []).map(a => (
           <div key={a.id} className="card" style={{ padding: "24px 28px" }}>
             <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto",
               gap: 24, alignItems: "start" }}>
@@ -97,7 +100,7 @@ function VendorLanding({ goto }) {
                   </div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {(a.categories || []).map(cid => {
-                      const g = groupById[cid];
+                      const g = groupById && groupById[cid];
                       if (!g) return null;
                       return (
                         <span key={cid} className="pill" style={{
@@ -147,7 +150,7 @@ function VendorLanding({ goto }) {
       </div>
 
       {/* Past announcements */}
-      {past.length ? (
+      {(past && past.length) ? (
         <div style={{ marginBottom: 32 }}>
           <h2 style={{ margin: "0 0 14px", fontSize: 18, fontWeight: 600,
             color: "var(--text-2)" }}>ประกาศที่ปิดรับสมัครแล้ว</h2>
@@ -163,7 +166,7 @@ function VendorLanding({ goto }) {
                 </tr>
               </thead>
               <tbody>
-                {past.map(a => (
+                {(past || []).map(a => (
                   <tr key={a.id}>
                     <td className="mono" style={{ fontSize: 12.5, color: "var(--text-2)" }}>{a.id}</td>
                     <td style={{ fontWeight: 500 }}>{a.title}</td>
@@ -224,8 +227,11 @@ const validateEmail = (email) => {
 // ── Registration form (multi-step) ──────────────────────────────────────────
 function VendorForm({ goto, annoId }) {
   const { groups, announcements } = useData();
-  const targetAnnc = annoId && announcements.find(a => a.id === annoId)
-    || announcements.find(a => a.status === "open" || a.status === "closing");
+  const annList = announcements || ANNOUNCEMENTS;
+  const groupList = groups || VENDOR_CATEGORIES;
+  console.log('🎬 VendorForm init:', { annList: annList?.length, groupList: groupList?.length });
+  const targetAnnc = annoId && annList.find(a => a.id === annoId)
+    || annList.find(a => a.status === "open" || a.status === "closing");
   const allowedCatIds = targetAnnc?.categories || [];
   const STEPS = [
     { id: "category", label: "ประเภทกลุ่มงาน" },
@@ -237,22 +243,22 @@ function VendorForm({ goto, annoId }) {
   const [step, setStep] = React.useState(0);
   const [form, setForm] = React.useState({
     categories: allowedCatIds.length === 1 ? [allowedCatIds[0]] : [],
-    vendorName: "บริษัท เซฟการ์ด ซีเคียวริตี้ จำกัด",
-    taxId: "0105556012345",
-    address: "999/12 ถนนพระราม 9",
-    subDistrict: "ห้วยขวาง",
-    district: "ห้วยขวาง",
-    province: "กรุงเทพมหานคร",
-    postalCode: "10310",
-    phone: "02-555-1234",
-    mobile: "081-234-5678",
-    email: "contact@safeguard-th.co.th",
-    years: "12",
-    capital: "20,000,000",
-    contactName: "วิชัย รัตนพงษ์",
-    contactPosition: "ผู้จัดการฝ่ายขาย",
-    contactEmail: "wichai@safeguard-th.co.th",
-    contactPhone: "081-234-5678",
+    vendorName: "",
+    taxId: "",
+    address: "",
+    subDistrict: "",
+    district: "",
+    province: "",
+    postalCode: "",
+    phone: "",
+    mobile: "",
+    email: "",
+    years: "",
+    capital: "",
+    contactName: "",
+    contactPosition: "",
+    contactEmail: "",
+    contactPhone: "",
   });
   const [errors, setErrors] = React.useState({});
   const [files, setFiles] = React.useState({
@@ -344,9 +350,9 @@ function VendorForm({ goto, annoId }) {
     }
     if (s === 3) {
       const generalMissing = REQUIRED_DOCS.filter(d => !files.general[d.id]).length;
-      const selectedGroups = groups.filter(g => form.categories.includes(g.id));
+      const selectedGroups = (groupList || []).filter(g => form.categories.includes(g.id));
       let groupMissing = 0;
-      selectedGroups.forEach(g => {
+      (selectedGroups || []).forEach(g => {
         const gf = files.groups[g.id] || { preq: null, works: [] };
         if (!gf.preq) groupMissing++;
         const worksDone = (gf.works || []).filter(Boolean).length;
@@ -375,12 +381,61 @@ function VendorForm({ goto, annoId }) {
     setShowErr(false);
     setStep(s => Math.max(0, s - 1));
   };
-  const submit = () => {
+
+  const [submissionId, setSubmissionId] = React.useState(null);
+  const [submitting, setSubmitting] = React.useState(false);
+
+  const submit = async () => {
     if (!currentValid.ok) { setShowErr(true); return; }
-    setSubmitted(true);
+
+    try {
+      setSubmitting(true);
+
+      // Generate submission ID (AVL-YY-XXXX format)
+      const year = new Date().getFullYear().toString().slice(-2);
+      const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      const id = `AVL-${year}-${randomNum}`;
+
+      // Prepare submission data
+      const submissionData = {
+        id,
+        annoId: targetAnnc?.id || "AVL-1/2569",
+        company: form.vendorName,
+        taxId: form.taxId,
+        category: groups.find(g => form.categories.includes(g.id))?.th || form.categories[0],
+        address: form.address,
+        subDistrict: form.subDistrict,
+        district: form.district,
+        province: form.province,
+        postcode: form.postalCode,
+        phone: form.phone,
+        mobile: form.mobile,
+        companyEmail: form.email,
+        capital: form.capital,
+        yearsInBusiness: parseInt(form.years, 10),
+        contact: form.contactName,
+        position: form.contactPosition,
+        email: form.contactEmail,
+        contactPhone: form.contactPhone,
+        submittedAt: new Date().toLocaleString("th-TH"),
+      };
+
+      // Save to Supabase
+      if (window.createSubmissionInDb) {
+        await window.createSubmissionInDb(submissionData);
+      }
+
+      setSubmissionId(id);
+      setSubmitted(true);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      alert('เกิดข้อผิดพลาดในการส่งใบสมัคร: ' + error.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (submitted) return <SubmittedScreen goto={goto} />;
+  if (submitted) return <SubmittedScreen goto={goto} submissionId={submissionId} />;
 
   return (
     <div className="fade-in" style={{ maxWidth: 980, margin: "0 auto" }}>
@@ -468,15 +523,16 @@ function VendorForm({ goto, annoId }) {
 
 const StepCategory = ({ form, setForm, annc }) => {
   const { groups } = useData();
+  const groupList = groups || VENDOR_CATEGORIES;
   const activeAnnc = annc;
   // Show ONLY the categories that the announcement opens
-  const availableGroups = groups.filter(g => (activeAnnc?.categories || []).includes(g.id));
+  const availableGroups = groupList.filter(g => (activeAnnc?.categories || []).includes(g.id));
   const toggle = (id) => {
     const has = form.categories.includes(id);
     setForm({ ...form, categories: has ? form.categories.filter(c => c !== id)
                                        : [...form.categories, id] });
   };
-  const selected = groups.filter(g => form.categories.includes(g.id));
+  const selected = groupList.filter(g => form.categories.includes(g.id));
   return (
     <div>
       <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 600 }}>เลือกประเภทกลุ่มงาน</h3>
@@ -506,7 +562,7 @@ const StepCategory = ({ form, setForm, annc }) => {
       )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
         gap: 12, marginBottom: 24 }}>
-        {availableGroups.map(c => {
+        {(availableGroups || []).map(c => {
           const checked = form.categories.includes(c.id);
           return (
             <label key={c.id} style={{
@@ -562,7 +618,7 @@ const StepCategory = ({ form, setForm, annc }) => {
             </button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {selected.map(c => {
+            {(selected || []).map(c => {
               const preq = PREQ_DOCS[c.id];
               return (
                 <div key={c.id} style={{
@@ -692,7 +748,8 @@ const StepContact = ({ form, update, errors }) => (
 
 const StepDocs = ({ form, files, setFiles }) => {
   const { groups } = useData();
-  const selectedGroups = groups.filter(g => form.categories.includes(g.id));
+  const groupList = groups || VENDOR_CATEGORIES;
+  const selectedGroups = groupList.filter(g => form.categories.includes(g.id));
 
   // Helpers
   const setGeneral = (id, file) => setFiles({
@@ -717,7 +774,7 @@ const StepDocs = ({ form, files, setFiles }) => {
   const generalDone = REQUIRED_DOCS.filter(d => files.general[d.id]).length;
   const generalTotal = REQUIRED_DOCS.length;
   let groupDone = 0, groupTotal = 0;
-  selectedGroups.forEach(g => {
+  (selectedGroups || []).forEach(g => {
     groupTotal += 1 + g.worksRequired; // preq + N works
     const gf = files.groups[g.id];
     if (gf?.preq) groupDone++;
@@ -772,7 +829,7 @@ const StepDocs = ({ form, files, setFiles }) => {
             color: "oklch(50% 0.15 70)" }} />
           กรุณากลับไปขั้นตอน "ประเภทกลุ่มงาน" และเลือกอย่างน้อย 1 กลุ่ม
         </div>
-      ) : selectedGroups.map(g => {
+      ) : (selectedGroups || []).map(g => {
         const gf = files.groups[g.id] || { preq: null, works: [] };
         const works = gf.works || [];
         const worksDone = works.filter(Boolean).length;
@@ -828,7 +885,8 @@ const StepDocs = ({ form, files, setFiles }) => {
 
 const StepReview = ({ form, files, consent, setConsent }) => {
   const { groups } = useData();
-  const cats = groups.filter(c => form.categories.includes(c.id)).map(c => c.th);
+  const groupList = groups || VENDOR_CATEGORIES;
+  const cats = groupList.filter(c => form.categories.includes(c.id)).map(c => c.th);
   const Block = ({ title, children }) => (
     <div>
       <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--primary)",
@@ -893,7 +951,7 @@ const StepReview = ({ form, files, consent, setConsent }) => {
             </React.Fragment>
           ))}
         </Block>
-        {groups.filter(g => form.categories.includes(g.id)).map(g => {
+        {((groupList || []).filter(g => form.categories.includes(g.id)) || []).map(g => {
           const gf = files.groups[g.id] || { preq: null, works: [] };
           const works = gf.works || [];
           return (
@@ -948,7 +1006,7 @@ const StepReview = ({ form, files, consent, setConsent }) => {
   );
 };
 
-const SubmittedScreen = ({ goto }) => (
+const SubmittedScreen = ({ goto, submissionId }) => (
   <div className="fade-in" style={{ maxWidth: 640, margin: "60px auto", textAlign: "center" }}>
     <div style={{
       width: 84, height: 84, margin: "0 auto 24px",
@@ -963,7 +1021,7 @@ const SubmittedScreen = ({ goto }) => (
       ขอบคุณที่สนใจร่วมเป็นคู่ค้ากับ EnCo
     </p>
     <p style={{ margin: 0, color: "var(--text-3)", fontSize: 14 }}>
-      เลขที่ใบสมัคร: <span className="mono" style={{ color: "var(--text)", fontWeight: 600 }}>AVL-26-0142</span>
+      เลขที่ใบสมัคร: <span className="mono" style={{ color: "var(--text)", fontWeight: 600 }}>{submissionId || "AVL-26-0142"}</span>
     </p>
     <div className="card" style={{ padding: 20, margin: "32px 0", textAlign: "left" }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--primary)",
