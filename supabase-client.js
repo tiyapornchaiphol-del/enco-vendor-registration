@@ -87,18 +87,95 @@ async function getCategoriesFromDb() {
   try {
     const { data, error } = await supabase
       .from('categories')
-      .select('*');
+      .select('*')
+      .order('num', { ascending: true });
 
     if (error) throw error;
 
     return (data || []).map(row => ({
       id: row.id,
-      name: row.name,
-      description: row.description
+      num: row.num,
+      th: row.th || row.name,
+      en: row.en || row.name,
+      name: row.name || row.th,
+      icon: row.icon || '📁',
+      worksRequired: row.works_required || 3,
+      desc: row.description || ''
     }));
   } catch (error) {
     console.error('Error fetching categories:', error);
     return [];
+  }
+}
+
+// Create category
+async function createCategoryInDb(catData) {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([{
+        id: catData.id,
+        name: catData.th || catData.name,
+        th: catData.th,
+        en: catData.en,
+        icon: catData.icon,
+        num: catData.num,
+        works_required: catData.worksRequired || 3,
+        description: catData.desc || ''
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    console.log('✅ Category created:', catData.id);
+    return data;
+  } catch (error) {
+    console.error('❌ Error creating category:', error);
+    throw error;
+  }
+}
+
+// Update category
+async function updateCategoryInDb(id, catData) {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .update({
+        name: catData.th || catData.name,
+        th: catData.th,
+        en: catData.en,
+        icon: catData.icon,
+        num: catData.num,
+        works_required: catData.worksRequired || 3,
+        description: catData.desc || ''
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    console.log('✅ Category updated:', id);
+    return data;
+  } catch (error) {
+    console.error('❌ Error updating category:', error);
+    throw error;
+  }
+}
+
+// Delete category
+async function deleteCategoryInDb(id) {
+  try {
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    console.log('✅ Category deleted:', id);
+    return true;
+  } catch (error) {
+    console.error('❌ Error deleting category:', error);
+    throw error;
   }
 }
 
@@ -340,6 +417,9 @@ Object.assign(window, {
   getSubmissionsFromDb,
   getAnnouncementsFromDb,
   getCategoriesFromDb,
+  createCategoryInDb,
+  updateCategoryInDb,
+  deleteCategoryInDb,
   createSubmissionInDb,
   updateSubmissionInDb,
   createAnnouncementInDb,

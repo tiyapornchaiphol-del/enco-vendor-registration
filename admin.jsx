@@ -1422,22 +1422,40 @@ function AdminGroups() {
 
   const usageCount = (gid) => announcements.filter(a => (a.categories || []).includes(gid)).length;
 
-  const save = (data) => {
-    if (data.id && groups.find(g => g.id === data.id)) {
-      setGroups(groups.map(g => g.id === data.id ? { ...g, ...data } : g));
-    } else {
-      const newId = data.id || `grp_${Date.now()}`;
-      const lastNum = parseInt(groups[groups.length - 1]?.num || "0", 10);
-      setGroups([...groups, { ...data, id: newId, num: String(lastNum + 1).padStart(2, "0") }]);
+  const save = async (data) => {
+    try {
+      if (data.id && groups.find(g => g.id === data.id)) {
+        // Update existing
+        await window.updateCategoryInDb(data.id, data);
+        setGroups(groups.map(g => g.id === data.id ? { ...g, ...data } : g));
+      } else {
+        // Create new
+        const newId = data.id || data.th?.toLowerCase().replace(/\s+/g, '_') || `grp_${Date.now()}`;
+        const lastNum = parseInt(groups[groups.length - 1]?.num || "0", 10);
+        const newData = { ...data, id: newId, num: String(lastNum + 1).padStart(2, "0") };
+        await window.createCategoryInDb(newData);
+        setGroups([...groups, newData]);
+      }
+      setEditing(null);
+    } catch (error) {
+      console.error('Error saving category:', error);
+      alert('เกิดข้อผิดพลาดในการบันทึกกลุ่มงาน กรุณาตรวจสอบ SQL ใน Supabase');
     }
-    setEditing(null);
   };
-  const remove = (gid) => {
+  const remove = async (gid) => {
     if (usageCount(gid) > 0) {
       alert("ไม่สามารถลบกลุ่มงานที่ถูกใช้ในประกาศได้");
       return;
     }
-    if (confirm("ลบกลุ่มงานนี้?")) setGroups(groups.filter(g => g.id !== gid));
+    if (confirm("ลบกลุ่มงานนี้?")) {
+      try {
+        await window.deleteCategoryInDb(gid);
+        setGroups(groups.filter(g => g.id !== gid));
+      } catch (error) {
+        console.error('Error deleting category:', error);
+        alert('เกิดข้อผิดพลาดในการลบกลุ่มงาน');
+      }
+    }
   };
 
   return (
