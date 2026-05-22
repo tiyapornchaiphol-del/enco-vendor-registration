@@ -591,66 +591,6 @@ const StepCategory = ({ form, setForm, annc }) => {
 
       {/* Pre-Qualification downloads for selected groups */}
       {selected.length ? (
-        <div style={{
-          padding: 20,
-          background: "var(--surface-2)",
-          border: "1px solid var(--line)",
-          borderRadius: 12,
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start",
-            marginBottom: 14, gap: 16, flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--primary)",
-                letterSpacing: ".08em", textTransform: "uppercase",
-                fontFamily: "var(--font-en)", marginBottom: 4 }}>
-                Pre-Qualification
-              </div>
-              <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-                ดาวน์โหลดแบบฟอร์ม Pre-Qualification ของกลุ่มที่เลือก
-              </h4>
-              <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--text-2)" }}>
-                ดาวน์โหลด กรอกข้อมูลให้ครบ แล้วอัปโหลดกลับในขั้น "อัปโหลดเอกสาร"
-              </p>
-            </div>
-            <button className="btn btn-soft btn-sm"
-              onClick={() => selected.forEach(c => { const preq = PREQ_DOCS[c.id]; simDownload(preq?.name || `Pre-Qualification_${c.id}.docx`); })}>
-              <Icon name="download" size={13} /> ดาวน์โหลดทั้งหมด ({selected.length})
-            </button>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {(selected || []).map(c => {
-              const preq = PREQ_DOCS[c.id];
-              return (
-                <div key={c.id} style={{
-                  display: "flex", alignItems: "center", gap: 12,
-                  padding: "10px 14px", background: "var(--surface)",
-                  border: "1px solid var(--line)", borderRadius: 8,
-                }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 7,
-                    background: "var(--primary-soft)", color: "var(--primary)",
-                    display: "grid", placeItems: "center", flexShrink: 0 }}>
-                    <Icon name="file" size={16} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 500 }}>
-                      <span style={{ marginRight: 6 }}>{c.icon}</span>{c.th}
-                    </div>
-                    <div className="mono" style={{ fontSize: 11.5, color: "var(--text-3)" }}>
-                      {preq?.name || `Pre-Qualification_${c.id}.docx`}
-                    </div>
-                  </div>
-                  <span className="mono" style={{ fontSize: 11.5, color: "var(--text-3)" }}>
-                    {preq?.size || "—"}
-                  </span>
-                  <button className="btn btn-ghost btn-sm"
-                    onClick={() => simDownload(preq?.name || `Pre-Qualification_${c.id}.docx`)}>
-                    <Icon name="download" size={13} /> ดาวน์โหลด
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       ) : null}
     </div>
   );
