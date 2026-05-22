@@ -588,10 +588,6 @@ const StepCategory = ({ form, setForm, annc }) => {
           );
         })}
       </div>
-
-      {/* Pre-Qualification downloads for selected groups */}
-      {selected.length ? (
-      ) : null}
     </div>
   );
 };
