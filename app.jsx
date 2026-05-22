@@ -1,11 +1,8 @@
 // Main app shell: sidebar nav + page routing + Tweaks panel + topbar.
 
-// Demo admin accounts
+// Demo admin account
 const ADMIN_ACCOUNTS = [
-  { email: "apha@enco.co.th",    password: "admin123", name: "อาภา จันทร์",       role: "Procurement Admin", permissions: ["approve","request-docs","manage-announcements","manage-groups","manage-users"] },
-  { email: "kitti@enco.co.th",   password: "review123", name: "กิตติ สุวรรณ",      role: "Reviewer",          permissions: ["approve","request-docs"] },
-  { email: "napas@enco.co.th",   password: "review123", name: "นภัส สุขใจ",        role: "Reviewer",          permissions: ["approve","request-docs"] },
-  { email: "manager@enco.co.th", password: "super123",  name: "ผู้จัดการ พิเชษฐ์", role: "Super Admin",       permissions: ["approve","request-docs","manage-announcements","manage-groups","manage-users","manage-admins"] },
+  { email: "admin@enco.co.th", password: "admin123", name: "Administrator", role: "Super Admin", permissions: ["approve","request-docs","manage-announcements","manage-groups","manage-users","manage-admins"] },
 ];
 
 function AdminLoginForm({ onLogin, onCancel }) {
@@ -50,7 +47,7 @@ function AdminLoginForm({ onLogin, onCancel }) {
       </div>
       <div style={{ marginTop: 16, padding: "10px 14px", background: "var(--surface-2)",
         borderRadius: 8, fontSize: 12, color: "var(--text-3)" }}>
-        <b style={{ color: "var(--text-2)" }}>ทดสอบ:</b> apha@enco.co.th / admin123
+        <b style={{ color: "var(--text-2)" }}>ข้อมูลเข้าระบบ:</b> admin@enco.co.th / admin123
       </div>
       <div style={{ textAlign: "center", marginTop: 16 }}>
         <button onClick={onCancel}
@@ -383,10 +380,7 @@ const BLANK_USER = { name: "", email: "", role: "Reviewer", active: true, passwo
 
 function AdminUsersPlaceholder() {
   const [users, setUsers] = React.useState([
-    { id: 1, name: "อาภา จันทร์",       email: "apha@enco.co.th",    role: "Procurement Admin", active: true,  lastSeen: "วันนี้ 09:24" },
-    { id: 2, name: "กิตติ สุวรรณ",      email: "kitti@enco.co.th",   role: "Reviewer",          active: true,  lastSeen: "เมื่อวาน 16:08" },
-    { id: 3, name: "นภัส สุขใจ",        email: "napas@enco.co.th",   role: "Reviewer",          active: true,  lastSeen: "2 วันที่แล้ว" },
-    { id: 4, name: "ผู้จัดการ พิเชษฐ์", email: "manager@enco.co.th", role: "Super Admin",       active: true,  lastSeen: "วันนี้ 11:42" },
+    { id: 1, name: "Administrator", email: "admin@enco.co.th", role: "Super Admin", active: true, lastSeen: "วันนี้" },
   ]);
   const [editing, setEditing] = React.useState(null); // null | user obj
   const [isNew, setIsNew] = React.useState(false);
