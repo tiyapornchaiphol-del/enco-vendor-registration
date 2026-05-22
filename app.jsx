@@ -74,13 +74,12 @@ function App() {
 
   // Shared mutable data (admin can edit groups + announcements; vendor views read)
   const [groups, setGroups] = React.useState(VENDOR_CATEGORIES);
-  const [registryDocs, setRegistryDocs] = React.useState(AVL_REGISTRY_DOCS);
 
   // Fetch data from Supabase
   const { submissions, setSubmissions, announcements, setAnnouncements, loading, error } = useSupabaseData();
 
   const dataValue = { groups, setGroups, announcements, setAnnouncements,
-    registryDocs, setRegistryDocs, submissions, setSubmissions, loading, error };
+    submissions, setSubmissions, loading, error };
 
   // Sync primary color to CSS var
   React.useEffect(() => {
@@ -121,7 +120,6 @@ function App() {
     { id: "admin-submissions",   label: "ใบสมัครคู่ค้า",          icon: "inbox" },
     { id: "admin-announcements", label: "ประกาศรับสมัคร",        icon: "megaphone" },
     { id: "admin-groups",        label: "กลุ่มงาน",                 icon: "sparkle" },
-    { id: "admin-registry-docs", label: "ประกาศรายชื่อคู่ค้า",     icon: "file" },
     { id: "admin-users",         label: "ผู้ใช้งานระบบ",          icon: "users" },
   ];
   const nav = isAdmin ? adminNav : vendorNav;
@@ -245,7 +243,6 @@ function App() {
           {page === "admin-detail"        && <AdminDetail goto={goto} id={detailId} />}
           {page === "admin-announcements" && <AdminAnnouncements goto={goto} />}
           {page === "admin-groups"        && <AdminGroups />}
-          {page === "admin-registry-docs" && <AdminRegistryDocs />}
           {page === "admin-users"         && <AdminUsersPlaceholder />}
         </main>
       </div>
@@ -277,7 +274,6 @@ function App() {
             <TweakButton label="ใบสมัครคู่ค้า" onClick={() => goto("admin-submissions")} />
             <TweakButton label="รายละเอียดใบสมัคร" onClick={() => goto("admin-detail", "AVL-26-0142")} />
             <TweakButton label="จัดการประกาศ" onClick={() => goto("admin-announcements")} />
-            <TweakButton label="ประกาศรายชื่อคู่ค้า" onClick={() => goto("admin-registry-docs")} />
           </>
         )}
       </TweaksPanel>
@@ -297,7 +293,6 @@ const Breadcrumb = ({ page, detailId, role, goto }) => {
     "admin-detail":        ["Admin", "ใบสมัครคู่ค้า", detailId || ""],
     "admin-announcements": ["Admin", "ประกาศรับสมัคร"],
     "admin-groups":        ["Admin", "กลุ่มงาน"],
-    "admin-registry-docs": ["Admin", "ประกาศรายชื่อคู่ค้า"],
     "admin-users":         ["Admin", "ผู้ใช้งานระบบ"],
   };
   const parts = titles[page] || [""];
@@ -368,221 +363,6 @@ const AdminVendorsPlaceholder = () => (
     </div>
   </div>
 );
-
-// ── Admin: Manage AVL Registry PDFs ─────────────────────────────────────────
-function AdminRegistryDocs() {
-  const { registryDocs, setRegistryDocs } = useData();
-  const [adding, setAdding] = React.useState(false);
-  const [draft, setDraft] = React.useState({ period: "", publishedAt: "", vendors: "", file: "", size: "" });
-
-  const fileInputRef = React.useRef(null);
-  const pickFile = () => fileInputRef.current?.click();
-  const onFile = (e) => {
-    const f = e.target.files?.[0];
-    if (f) setDraft({ ...draft, file: f.name, size: `${(f.size / 1024).toFixed(0)} KB` });
-  };
-
-  const publish = () => {
-    if (!draft.period || !draft.publishedAt || !draft.file) return;
-    // Convert ISO date (YYYY-MM-DD Gregorian) → Thai display (e.g. "1 ก.ค. 2569")
-    const formatThai = (iso) => {
-      const months = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.",
-        "ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
-      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-      if (!m) return iso;
-      const [, y, mo, d] = m;
-      return `${parseInt(d, 10)} ${months[parseInt(mo, 10) - 1]} ${parseInt(y, 10) + 543}`;
-    };
-    const newDoc = {
-      id: `avl-${Date.now()}`,
-      period: draft.period,
-      publishedAt: formatThai(draft.publishedAt),
-      vendors: parseInt(draft.vendors, 10) || 0,
-      file: draft.file,
-      size: draft.size || "—",
-    };
-    setRegistryDocs([newDoc, ...registryDocs]);
-    setAdding(false);
-    setDraft({ period: "", publishedAt: "", vendors: "", file: "", size: "" });
-  };
-
-  const remove = (id) => {
-    if (confirm("ลบประกาศรายชื่อนี้?")) setRegistryDocs(registryDocs.filter(d => d.id !== id));
-  };
-
-  return (
-    <div className="fade-in">
-      <SectionHeader
-        eyebrow="Admin · AVL Registry"
-        title="ประกาศรายชื่อคู่ค้า (PDF)"
-        desc="อัปโหลดและจัดการเอกสารประกาศรายชื่อคู่ค้าที่ผ่านการพิจารณาและได้รับอนุมัติจากผู้บริหารแล้ว — เอกสารจะแสดงในหน้า 'ทะเบียนรายชื่อผู้ค้า' ฝั่ง Vendor ทันที"
-        action={
-          !adding ? (
-            <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
-              <Icon name="upload" size={14} /> อัปโหลดประกาศใหม่
-            </button>
-          ) : null
-        } />
-
-      {adding ? (
-        <div className="card" style={{ padding: 24, marginBottom: 16,
-          border: "1px solid var(--primary-border)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between",
-            marginBottom: 18, alignItems: "center" }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>เผยแพร่ประกาศรายชื่อใหม่</h3>
-            <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setAdding(false)}>
-              <Icon name="x" size={16} />
-            </button>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-            <Field label="ช่วงประกาศ" required hint="ตรงกับรอบประกาศรับสมัคร เช่น ครั้งที่ 1/2569">
-              <input className="input" value={draft.period}
-                onChange={(e) => setDraft({ ...draft, period: e.target.value })}
-                placeholder="ครั้งที่ 1/2569" />
-            </Field>
-            <Field label="วันที่เผยแพร่" required>
-              <input className="input" type="date" value={draft.publishedAt}
-                onChange={(e) => setDraft({ ...draft, publishedAt: e.target.value })} />
-            </Field>
-            <Field label="จำนวนคู่ค้าในรายชื่อ">
-              <input className="input num" type="number" value={draft.vendors}
-                onChange={(e) => setDraft({ ...draft, vendors: e.target.value })}
-                placeholder="0" />
-            </Field>
-          </div>
-          <div style={{ marginTop: 14 }}>
-            <div className="label" style={{ marginBottom: 6 }}>
-              <span>ไฟล์ PDF</span>
-              <span className="req" style={{ color: "var(--danger)" }}>*</span>
-            </div>
-            <input type="file" ref={fileInputRef} accept=".pdf" style={{ display: "none" }}
-              onChange={onFile} />
-            <div style={{
-              padding: 16, border: "1.5px dashed var(--line)",
-              borderRadius: 10, display: "flex", alignItems: "center", gap: 14,
-            }}>
-              <div style={{ width: 40, height: 48, borderRadius: 6,
-                background: draft.file ? "var(--primary-soft)" : "var(--surface-2)",
-                border: `1px solid ${draft.file ? "var(--primary-border)" : "var(--line)"}`,
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                color: draft.file ? "var(--primary)" : "var(--text-3)",
-                fontSize: 8, fontWeight: 700, letterSpacing: ".05em",
-                fontFamily: "var(--font-en)",
-              }}>
-                <Icon name="file" size={16} /> PDF
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {draft.file ? (
-                  <>
-                    <div className="mono" style={{ fontSize: 13, fontWeight: 500 }}>{draft.file}</div>
-                    <div className="mono" style={{ fontSize: 12, color: "var(--text-3)" }}>{draft.size}</div>
-                  </>
-                ) : (
-                  <div style={{ fontSize: 13, color: "var(--text-3)" }}>
-                    เลือกไฟล์ PDF ของประกาศรายชื่อคู่ค้า (สูงสุด 20 MB)
-                  </div>
-                )}
-              </div>
-              <button className="btn btn-soft btn-sm" onClick={pickFile}>
-                <Icon name="upload" size={14} /> {draft.file ? "เปลี่ยน" : "เลือกไฟล์"}
-              </button>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 18, justifyContent: "flex-end" }}>
-            <button className="btn btn-ghost" onClick={() => setAdding(false)}>ยกเลิก</button>
-            <button className="btn btn-primary" onClick={publish}
-              disabled={!draft.period || !draft.publishedAt || !draft.file}>
-              <Icon name="check" size={14} /> เผยแพร่ประกาศ
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="card" style={{ overflow: "hidden" }}>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th style={{ width: 60 }}></th>
-              <th>ประกาศรายชื่อ</th>
-              <th style={{ width: 140 }}>วันที่เผยแพร่</th>
-              <th style={{ width: 130 }}>คู่ค้าในรายชื่อ</th>
-              <th style={{ width: 100 }}>ขนาดไฟล์</th>
-              <th style={{ width: 130 }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {registryDocs.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: "center", padding: 32,
-                color: "var(--text-3)", fontSize: 13 }}>
-                ยังไม่มีประกาศรายชื่อคู่ค้า — กดปุ่ม "อัปโหลดประกาศใหม่"
-              </td></tr>
-            ) : registryDocs.map((d, i) => (
-              <tr key={d.id}>
-                <td>
-                  <div style={{
-                    width: 36, height: 44, margin: "0 auto",
-                    background: i === 0 ? "var(--primary-soft)" : "var(--surface-2)",
-                    border: `1px solid ${i === 0 ? "var(--primary-border)" : "var(--line)"}`,
-                    borderRadius: 5,
-                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                    color: i === 0 ? "var(--primary)" : "var(--text-3)",
-                    fontSize: 8, fontWeight: 700, letterSpacing: ".05em",
-                    fontFamily: "var(--font-en)",
-                  }}>
-                    <Icon name="file" size={15} /> PDF
-                  </div>
-                </td>
-                <td>
-                  <div style={{ fontWeight: 500, fontSize: 14 }}>
-                    รายชื่อคู่ค้าที่ขึ้นทะเบียน {d.period}
-                    {i === 0 ? (
-                      <span className="pill" style={{ background: "var(--success-soft)",
-                        color: "oklch(38% 0.11 155)", marginLeft: 8, fontSize: 11 }}>
-                        <span className="pill-dot" /> ฉบับล่าสุด
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mono" style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 2 }}>
-                    {d.file}
-                  </div>
-                </td>
-                <td style={{ color: "var(--text-2)", fontSize: 13 }}>{d.publishedAt}</td>
-                <td className="num" style={{ color: "var(--text-2)", fontSize: 13 }}>{d.vendors} ราย</td>
-                <td className="mono" style={{ color: "var(--text-3)", fontSize: 12 }}>{d.size}</td>
-                <td>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button className="btn btn-ghost btn-sm btn-icon" title="ดาวน์โหลด">
-                      <Icon name="download" size={14} />
-                    </button>
-                    <button className="btn btn-ghost btn-sm btn-icon"
-                      onClick={() => remove(d.id)} title="ลบ"
-                      style={{ color: "var(--danger)" }}>
-                      <Icon name="trash" size={14} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div style={{
-        marginTop: 16, padding: "12px 16px",
-        background: "var(--surface-2)", borderRadius: 10,
-        display: "flex", gap: 10, alignItems: "flex-start",
-        fontSize: 12.5, color: "var(--text-2)",
-      }}>
-        <Icon name="track" size={14} style={{ color: "var(--text-3)", marginTop: 2, flexShrink: 0 }} />
-        <div>
-          <b style={{ color: "var(--text)" }}>หมายเหตุ:</b>{" "}
-          การขึ้นทะเบียนคู่ค้าจะเกิดขึ้นก็ต่อเมื่อคู่ค้าได้รับการคัดเลือกและอนุมัติจากผู้บริหารแล้ว
-          วันที่ในประกาศนี้เป็นวันที่ฝ่ายจัดซื้อเผยแพร่เอกสาร ไม่อ้างอิงกับวันที่อนุมัติใบสมัครในระบบ
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const ROLE_OPTIONS = [
   { value: "Super Admin",        label: "Super Admin",        perms: ["approve","request-docs","manage-announcements","manage-groups","manage-users","manage-admins"] },
