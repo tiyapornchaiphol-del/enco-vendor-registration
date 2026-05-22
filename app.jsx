@@ -235,7 +235,6 @@ function App() {
 
           {/* Pages */}
           {page === "landing"             && <VendorLanding goto={goto} />}
-          {page === "avl-registry"        && <VendorRegistry goto={goto} />}
           {page === "form"                && <VendorForm key={detailId || "default"} goto={goto} annoId={detailId} />}
           {page === "track"               && <VendorTrack goto={goto} />}
           {page === "admin-dashboard"     && <AdminDashboard goto={goto} />}
