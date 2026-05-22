@@ -342,6 +342,60 @@ async function deactivateAdmin(id) {
   }
 }
 
+// ─── Storage Functions ───
+
+// Upload file to Supabase Storage
+async function uploadFileToStorage(file, folder = 'announcements') {
+  try {
+    const ext = file.name.split('.').pop();
+    const fileName = `${folder}/${Date.now()}_${file.name}`;
+
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .upload(fileName, file, { upsert: false });
+
+    if (error) throw error;
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('documents')
+      .getPublicUrl(fileName);
+
+    console.log('✅ File uploaded:', file.name);
+    return {
+      name: file.name,
+      size: formatFileSize(file.size),
+      url: urlData.publicUrl,
+      path: fileName
+    };
+  } catch (error) {
+    console.error('❌ Error uploading file:', error);
+    throw error;
+  }
+}
+
+// Delete file from Supabase Storage
+async function deleteFileFromStorage(filePath) {
+  try {
+    const { error } = await supabase.storage
+      .from('documents')
+      .remove([filePath]);
+    if (error) throw error;
+    console.log('✅ File deleted:', filePath);
+    return true;
+  } catch (error) {
+    console.error('❌ Error deleting file:', error);
+    throw error;
+  }
+}
+
+// Helper - format file size
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
 // ─── Announcement Functions ───
 
 // Create announcement
@@ -420,6 +474,8 @@ Object.assign(window, {
   createCategoryInDb,
   updateCategoryInDb,
   deleteCategoryInDb,
+  uploadFileToStorage,
+  deleteFileFromStorage,
   createSubmissionInDb,
   updateSubmissionInDb,
   createAnnouncementInDb,

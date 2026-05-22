@@ -1283,10 +1283,37 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
     title: "", categories: [], openedAt: "", closedAt: "",
     summary: "", status: "open", docs: [],
   });
+  const [uploading, setUploading] = React.useState(false);
+  const fileInputRef = React.useRef(null);
+
   const toggleCat = (cid) => {
     const has = (v.categories || []).includes(cid);
     setV({ ...v, categories: has ? v.categories.filter(c => c !== cid)
                                  : [...(v.categories || []), cid] });
+  };
+
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const uploaded = await Promise.all(
+        files.map(f => window.uploadFileToStorage(f, 'announcements'))
+      );
+      setV(prev => ({ ...prev, docs: [...(prev.docs || []), ...uploaded] }));
+    } catch (err) {
+      alert('เกิดข้อผิดพลาดในการอัปโหลดไฟล์: ' + err.message);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeDoc = async (doc, i) => {
+    try {
+      if (doc.path) await window.deleteFileFromStorage(doc.path);
+    } catch {}
+    setV(prev => ({ ...prev, docs: prev.docs.filter((_, j) => j !== i) }));
   };
 
   return (
@@ -1385,20 +1412,40 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
                 border: "1px solid var(--line)", borderRadius: 8, fontSize: 12.5,
               }}>
                 <Icon name="file" size={14} style={{ color: "var(--primary)" }} />
-                <span className="mono" style={{ flex: 1, overflow: "hidden",
-                  textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
+                {d.url ? (
+                  <a href={d.url} target="_blank" rel="noopener noreferrer"
+                    className="mono" style={{ flex: 1, overflow: "hidden",
+                    textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--primary)" }}>
+                    {d.name}
+                  </a>
+                ) : (
+                  <span className="mono" style={{ flex: 1, overflow: "hidden",
+                    textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
+                )}
                 <span style={{ color: "var(--text-3)", fontSize: 11.5 }}>{d.size}</span>
                 <button className="btn btn-ghost btn-sm btn-icon"
-                  onClick={() => setV({ ...v, docs: v.docs.filter((_, j) => j !== i) })}>
+                  onClick={() => removeDoc(d, i)}>
                   <Icon name="trash" size={12} />
                 </button>
               </div>
             ))}
           </div>
-          <button className="btn btn-ghost btn-sm" style={{ width: "100%", borderStyle: "dashed" }}
-            onClick={() => setV({ ...v, docs: [...(v.docs || []),
-              { name: `เอกสารใหม่_${(v.docs?.length || 0) + 1}.pdf`, size: "120 KB" }] })}>
-            <Icon name="upload" size={14} /> เพิ่มไฟล์แนบ
+          {/* Hidden real file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+            style={{ display: "none" }}
+            onChange={handleFileUpload}
+          />
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ width: "100%", borderStyle: "dashed" }}
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}>
+            <Icon name="upload" size={14} />
+            {uploading ? "กำลังอัปโหลด..." : "เพิ่มไฟล์แนบ"}
           </button>
         </div>
 
