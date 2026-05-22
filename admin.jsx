@@ -1140,17 +1140,54 @@ function AdminAnnouncements({ goto }) {
   const [editing, setEditing] = React.useState(null);
   const groupById = Object.fromEntries(groups.map(g => [g.id, g]));
 
-  const saveAnnouncement = (data) => {
-    if (data.id && announcements.find(a => a.id === data.id)) {
-      setAnnouncements(announcements.map(a => a.id === data.id ? { ...a, ...data } : a));
-    } else {
-      const newId = `AVL-${Math.floor(Math.random() * 90 + 10)}/2569`;
-      setAnnouncements([{ ...data, id: data.id || newId }, ...announcements]);
+  const saveAnnouncement = async (data) => {
+    try {
+      if (data.id && announcements.find(a => a.id === data.id)) {
+        // Update existing announcement
+        await window.updateAnnouncementInDb(data.id, {
+          title: data.title,
+          description: data.description,
+          status: data.status,
+          categories: data.categories,
+          opened_at: data.openedAt,
+          closed_at: data.closedAt,
+          summary: data.summary,
+          docs: data.docs
+        });
+        setAnnouncements(announcements.map(a => a.id === data.id ? { ...a, ...data } : a));
+      } else {
+        // Create new announcement
+        const newId = `AN-${new Date().getFullYear()}-${String(announcements.filter(a => a.id.startsWith('AN-')).length + 1).padStart(3, '0')}`;
+        const annoData = { ...data, id: data.id || newId };
+        await window.createAnnouncementInDb({
+          id: annoData.id,
+          title: annoData.title,
+          description: annoData.description,
+          status: annoData.status || 'open',
+          categories: annoData.categories,
+          openedAt: annoData.openedAt,
+          closedAt: annoData.closedAt,
+          summary: annoData.summary,
+          docs: annoData.docs
+        });
+        setAnnouncements([annoData, ...announcements]);
+      }
+      setEditing(null);
+    } catch (error) {
+      console.error('Error saving announcement:', error);
+      alert('เกิดข้อผิดพลาดในการบันทึกประกาศ');
     }
-    setEditing(null);
   };
-  const deleteAnnouncement = (id) => {
-    if (confirm(`ลบประกาศ ${id}?`)) setAnnouncements(announcements.filter(a => a.id !== id));
+  const deleteAnnouncement = async (id) => {
+    if (confirm(`ลบประกาศ ${id}?`)) {
+      try {
+        await window.deleteAnnouncementInDb(id);
+        setAnnouncements(announcements.filter(a => a.id !== id));
+      } catch (error) {
+        console.error('Error deleting announcement:', error);
+        alert('เกิดข้อผิดพลาดในการลบประกาศ');
+      }
+    }
   };
 
   return (

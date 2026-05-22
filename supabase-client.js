@@ -265,6 +265,75 @@ async function deactivateAdmin(id) {
   }
 }
 
+// ─── Announcement Functions ───
+
+// Create announcement
+async function createAnnouncementInDb(annoData) {
+  try {
+    console.log('📝 Creating announcement:', annoData.id);
+    const { data, error } = await supabase
+      .from('announcements')
+      .insert([{
+        id: annoData.id,
+        title: annoData.title,
+        description: annoData.description,
+        status: annoData.status || 'open',
+        categories: annoData.categories || [],
+        opened_at: annoData.openedAt,
+        closed_at: annoData.closedAt,
+        summary: annoData.summary,
+        docs: annoData.docs || []
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    console.log('✅ Announcement created:', annoData.id);
+    return data;
+  } catch (error) {
+    console.error('❌ Error creating announcement:', error);
+    throw error;
+  }
+}
+
+// Update announcement
+async function updateAnnouncementInDb(id, updates) {
+  try {
+    console.log('✏️ Updating announcement:', id);
+    const { data, error } = await supabase
+      .from('announcements')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    console.log('✅ Announcement updated:', id);
+    return data;
+  } catch (error) {
+    console.error('❌ Error updating announcement:', error);
+    throw error;
+  }
+}
+
+// Delete announcement
+async function deleteAnnouncementInDb(id) {
+  try {
+    console.log('🗑️ Deleting announcement:', id);
+    const { error } = await supabase
+      .from('announcements')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    console.log('✅ Announcement deleted:', id);
+    return true;
+  } catch (error) {
+    console.error('❌ Error deleting announcement:', error);
+    throw error;
+  }
+}
+
 // Export functions
 Object.assign(window, {
   supabase,
@@ -273,6 +342,9 @@ Object.assign(window, {
   getCategoriesFromDb,
   createSubmissionInDb,
   updateSubmissionInDb,
+  createAnnouncementInDb,
+  updateAnnouncementInDb,
+  deleteAnnouncementInDb,
   getAdminByEmail,
   getAllAdmins,
   createAdmin,
