@@ -1061,13 +1061,7 @@ function VendorTrack({ goto }) {
           fontSize: 12.5, color: "var(--text-2)", display: "flex", gap: 10, alignItems: "flex-start",
         }}>
           <Icon name="track" size={14} style={{ color: "var(--text-3)", marginTop: 2, flexShrink: 0 }} />
-          <div>
-            ทดสอบ: ลองใช้ <button className="mono" onClick={() => { setRefNo("AVL-26-0142"); setVerify("0105556012345"); }}
-              style={{ background: "none", border: "none", color: "var(--primary)",
-                textDecoration: "underline", cursor: "pointer", padding: 0, font: "inherit" }}>
-              AVL-26-0142
-            </button>{" "}+ เลขผู้เสียภาษี <span className="mono">0105556012345</span>
-          </div>
+          <div>ใส่เลขที่ใบสมัครที่ได้รับทางอีเมล พร้อมเลขผู้เสียภาษีหรืออีเมลที่ใช้ตอนสมัคร</div>
         </div>
       </div>
 
