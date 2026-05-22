@@ -1284,7 +1284,7 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
     summary: "", status: "open", docs: [],
   });
   const [uploading, setUploading] = React.useState(false);
-  const fileInputRef = React.useRef(null);
+  const inputId = React.useId ? React.useId() : `file-input-${id}`;
 
   const toggleCat = (cid) => {
     const has = (v.categories || []).includes(cid);
@@ -1293,21 +1293,29 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
   };
 
   const handleFileUpload = async (e) => {
-    const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files || []);
     if (!files.length) return;
     setUploading(true);
     try {
-      const uploaded = await Promise.all(
-        files.map(f => window.uploadFileToStorage(f, 'announcements'))
-      );
+      const uploaded = [];
+      for (const f of files) {
+        try {
+          const result = await window.uploadFileToStorage(f, 'announcements');
+          uploaded.push(result);
+        } catch (err) {
+          console.error('Upload error for', f.name, err);
+          // If storage not set up, save filename only
+          uploaded.push({ name: f.name, size: formatBytes(f.size), url: null, path: null });
+        }
+      }
       setV(prev => ({ ...prev, docs: [...(prev.docs || []), ...uploaded] }));
-    } catch (err) {
-      alert('เกิดข้อผิดพลาดในการอัปโหลดไฟล์: ' + err.message);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      e.target.value = '';
     }
   };
+
+  const formatBytes = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b/1024).toFixed(0) + ' KB' : (b/1048576).toFixed(1) + ' MB';
 
   const removeDoc = async (doc, i) => {
     try {
@@ -1430,23 +1438,28 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
               </div>
             ))}
           </div>
-          {/* Hidden real file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-            style={{ display: "none" }}
-            onChange={handleFileUpload}
-          />
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ width: "100%", borderStyle: "dashed" }}
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}>
+          {/* Label triggers file picker — more reliable than ref.click() */}
+          <label htmlFor={inputId} style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 6, width: "100%", padding: "7px 12px",
+            border: "1px dashed var(--line)", borderRadius: "var(--radius)",
+            cursor: uploading ? "not-allowed" : "pointer",
+            fontSize: 13, fontWeight: 500, color: "var(--text-2)",
+            background: "var(--surface)", transition: "all .15s",
+            opacity: uploading ? 0.6 : 1,
+          }}>
             <Icon name="upload" size={14} />
             {uploading ? "กำลังอัปโหลด..." : "เพิ่มไฟล์แนบ"}
-          </button>
+            <input
+              id={inputId}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+              disabled={uploading}
+              style={{ display: "none" }}
+              onChange={handleFileUpload}
+            />
+          </label>
         </div>
 
         <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
