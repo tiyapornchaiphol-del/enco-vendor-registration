@@ -90,14 +90,29 @@ function App() {
   const [detailId, setDetailId] = React.useState(null);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  // Shared mutable data (admin can edit groups + announcements; vendor views read)
-  const [groups, setGroups] = React.useState(VENDOR_CATEGORIES);
+  // Fetch data from Supabase (includes groups, announcements, submissions, categories)
+  const {
+    submissions, setSubmissions,
+    announcements, setAnnouncements,
+    categories, setCategories,
+    loading, error
+  } = useSupabaseData();
 
-  // Fetch data from Supabase
-  const { submissions, setSubmissions, announcements, setAnnouncements, loading, error } = useSupabaseData();
+  // Use categories from Supabase as groups
+  const [groups, setGroups] = React.useState([]);
+  React.useEffect(() => {
+    if (categories && categories.length > 0) {
+      setGroups(categories);
+    }
+  }, [categories]);
 
-  const dataValue = { groups, setGroups, announcements, setAnnouncements,
-    submissions, setSubmissions, loading, error };
+  const dataValue = {
+    groups, setGroups,
+    announcements, setAnnouncements,
+    submissions, setSubmissions,
+    categories, setCategories,
+    loading, error
+  };
 
   // Sync primary color to CSS var
   React.useEffect(() => {

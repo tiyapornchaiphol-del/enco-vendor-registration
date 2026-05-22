@@ -1,20 +1,8 @@
 // Sample / seed data + i18n strings shared by vendor & admin views.
 
-const VENDOR_CATEGORIES = [
-  { id: "security",  num: "01", th: "งานรักษาความปลอดภัย",            en: "Security Services",        icon: "🛡",
-    worksRequired: 3,
-    desc: "รปภ. ประจำพื้นที่ ระบบ CCTV และงานควบคุมการเข้า-ออก" },
-  { id: "cleaning",  num: "02", th: "งานรักษาความสะอาด",              en: "Cleaning Services",         icon: "🧹",
-    worksRequired: 3,
-    desc: "แม่บ้าน ทำความสะอาดสำนักงาน อาคาร และพื้นที่ส่วนกลาง" },
-  { id: "repair",    num: "03", th: "งานปรับปรุง-ซ่อมแซมทั่วไป",        en: "General Repair & Maintenance", icon: "🔧",
-    worksRequired: 5,
-    desc: "งานซ่อมบำรุงอาคาร ระบบไฟฟ้า ประปา ปรับอากาศ" },
-  { id: "interior",  num: "04", th: "งานปรับปรุง-ซ่อมแซมตกแต่งภายใน",   en: "Interior Decoration",       icon: "🛠",
-    worksRequired: 5,
-    desc: "ตกแต่งภายใน เฟอร์นิเจอร์ ฝ้า ผนัง พื้น และงาน built-in" },
-];
-
+// Categories and announcements are now stored in Supabase database
+// Empty arrays serve as fallback if database is unavailable
+const VENDOR_CATEGORIES = [];
 const ANNOUNCEMENTS = [];
 
 const REQUIRED_DOCS = [
@@ -57,6 +45,7 @@ const useData = () => React.useContext(DataContext);
 function useSupabaseData() {
   const [submissions, setSubmissions] = React.useState([]);
   const [announcements, setAnnouncements] = React.useState([]);
+  const [categories, setCategories] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
 
@@ -69,15 +58,22 @@ function useSupabaseData() {
         console.log('📡 Loading data from Supabase...');
         console.log('window.getSubmissionsFromDb:', typeof window.getSubmissionsFromDb);
         console.log('window.getAnnouncementsFromDb:', typeof window.getAnnouncementsFromDb);
+        console.log('window.getCategoriesFromDb:', typeof window.getCategoriesFromDb);
 
-        // Fetch submissions and announcements from Supabase
+        // Fetch submissions, announcements, and categories from Supabase
         const subsData = await window.getSubmissionsFromDb?.();
         const annData = await window.getAnnouncementsFromDb?.();
+        const catData = await window.getCategoriesFromDb?.();
 
-        console.log('✅ Supabase data loaded:', { subsData: subsData?.length, annData: annData?.length });
+        console.log('✅ Supabase data loaded:', {
+          subsData: subsData?.length,
+          annData: annData?.length,
+          catData: catData?.length
+        });
 
         setSubmissions(subsData || []);
         setAnnouncements(annData || []);
+        setCategories(catData || []);
       } catch (err) {
         console.error('❌ Error loading Supabase data:', err);
         setError(err.message);
@@ -85,6 +81,7 @@ function useSupabaseData() {
         console.log('⚠️ Using fallback hardcoded data');
         setSubmissions(SUBMISSIONS);
         setAnnouncements(ANNOUNCEMENTS);
+        setCategories(VENDOR_CATEGORIES);
       } finally {
         setLoading(false);
       }
@@ -93,19 +90,26 @@ function useSupabaseData() {
     loadData();
   }, []);
 
-  // If announcements from Supabase are incomplete, use hardcoded
-  const finalAnnouncements = (announcements && announcements.length > 0 && announcements[0]?.categories)
-    ? announcements
-    : ANNOUNCEMENTS;
-
   return {
     submissions: submissions && submissions.length > 0 ? submissions : [],
     setSubmissions,
-    announcements: finalAnnouncements,
+    announcements: announcements && announcements.length > 0 ? announcements : ANNOUNCEMENTS,
     setAnnouncements,
+    categories: categories && categories.length > 0 ? categories : VENDOR_CATEGORIES,
+    setCategories,
     loading,
     error
   };
 }
 
-Object.assign(window, { DataContext, useData, useSupabaseData });
+Object.assign(window, {
+  DataContext,
+  useData,
+  useSupabaseData,
+  VENDOR_CATEGORIES,
+  ANNOUNCEMENTS,
+  SUBMISSIONS,
+  REQUIRED_DOCS,
+  STATUS_LABEL,
+  ANNC_STATUS_LABEL
+});
