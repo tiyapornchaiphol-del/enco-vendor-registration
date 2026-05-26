@@ -1192,6 +1192,15 @@ function AdminAnnouncements({ goto }) {
 
   return (
     <div className="fade-in">
+      {/* Modal */}
+      {editing && (
+        <AnnouncementEditor
+          id={editing}
+          onClose={() => setEditing(null)}
+          onSave={saveAnnouncement}
+        />
+      )}
+
       <SectionHeader
         eyebrow="Admin · Announcements"
         title="จัดการประกาศรับสมัคร"
@@ -1202,75 +1211,77 @@ function AdminAnnouncements({ goto }) {
           </button>
         } />
 
-      <div style={{ display: "grid", gridTemplateColumns: editing ? "minmax(0, 1.4fr) 1fr" : "1fr",
-        gap: 16, alignItems: "start" }}>
-        <div className="card" style={{ overflow: "hidden" }}>
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th style={{ width: 120 }}>เลขที่</th>
-                <th>ประกาศ</th>
-                <th style={{ width: 220 }}>กลุ่มงานที่เปิด</th>
-                <th style={{ width: 140 }}>ช่วงเวลา</th>
-                <th style={{ width: 110 }}>สถานะ</th>
-                <th style={{ width: 70 }}></th>
+      <div className="card" style={{ overflow: "hidden" }}>
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th style={{ width: 120 }}>เลขที่</th>
+              <th>ประกาศ</th>
+              <th style={{ width: 220 }}>กลุ่มงานที่เปิด</th>
+              <th style={{ width: 140 }}>ช่วงเวลา</th>
+              <th style={{ width: 110 }}>สถานะ</th>
+              <th style={{ width: 70 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {announcements.map(a => (
+              <tr key={a.id}>
+                <td className="mono" style={{ fontSize: 12.5, color: "var(--text-2)" }}>{a.id}</td>
+                <td>
+                  <div style={{ fontWeight: 500, fontSize: 13.5 }}>{a.title}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2,
+                    maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis",
+                    whiteSpace: "nowrap" }}>{a.summary}</div>
+                </td>
+                <td>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {(a.categories || []).slice(0, 3).map(cid => {
+                      const g = groupById[cid];
+                      if (!g) return null;
+                      return (
+                        <span key={cid} className="pill" style={{
+                          background: "var(--surface-2)", color: "var(--text-2)",
+                          fontSize: 11.5, padding: "2px 8px",
+                        }}>{g.icon} {g.th}</span>
+                      );
+                    })}
+                    {(a.categories || []).length > 3 ? (
+                      <span className="pill" style={{ background: "var(--surface-2)",
+                        color: "var(--text-3)", fontSize: 11.5 }}>
+                        +{a.categories.length - 3}
+                      </span>
+                    ) : null}
+                  </div>
+                </td>
+                <td style={{ color: "var(--text-2)", fontSize: 12.5 }}>
+                  {a.openedAt}<br />
+                  <span style={{ color: "var(--text-3)" }}>→ {a.closedAt}</span>
+                </td>
+                <td><StatusChip status={computeAnnoStatus(a.closedAt, a.openedAt)} map={ANNC_STATUS_LABEL} /></td>
+                <td>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button className="btn btn-ghost btn-sm btn-icon"
+                      onClick={() => setEditing(a.id)}>
+                      <Icon name="edit" size={14} />
+                    </button>
+                    <button className="btn btn-ghost btn-sm btn-icon"
+                      onClick={() => deleteAnnouncement(a.id)}>
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {announcements.map(a => (
-                <tr key={a.id}>
-                  <td className="mono" style={{ fontSize: 12.5, color: "var(--text-2)" }}>{a.id}</td>
-                  <td>
-                    <div style={{ fontWeight: 500, fontSize: 13.5 }}>{a.title}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2,
-                      maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis",
-                      whiteSpace: "nowrap" }}>{a.summary}</div>
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                      {(a.categories || []).slice(0, 3).map(cid => {
-                        const g = groupById[cid];
-                        if (!g) return null;
-                        return (
-                          <span key={cid} className="pill" style={{
-                            background: "var(--surface-2)", color: "var(--text-2)",
-                            fontSize: 11.5, padding: "2px 8px",
-                          }}>{g.icon} {g.th}</span>
-                        );
-                      })}
-                      {(a.categories || []).length > 3 ? (
-                        <span className="pill" style={{ background: "var(--surface-2)",
-                          color: "var(--text-3)", fontSize: 11.5 }}>
-                          +{a.categories.length - 3}
-                        </span>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td style={{ color: "var(--text-2)", fontSize: 12.5 }}>
-                    {a.openedAt}<br />
-                    <span style={{ color: "var(--text-3)" }}>→ {a.closedAt}</span>
-                  </td>
-                  <td><StatusChip status={computeAnnoStatus(a.closedAt, a.openedAt)} map={ANNC_STATUS_LABEL} /></td>
-                  <td>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button className="btn btn-ghost btn-sm btn-icon"
-                        onClick={() => setEditing(a.id)}>
-                        <Icon name="edit" size={14} />
-                      </button>
-                      <button className="btn btn-ghost btn-sm btn-icon"
-                        onClick={() => deleteAnnouncement(a.id)}>
-                        <Icon name="trash" size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {editing && <AnnouncementEditor id={editing} onClose={() => setEditing(null)}
-          onSave={saveAnnouncement} />}
+            ))}
+            {announcements.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{ textAlign: "center", padding: "48px 16px",
+                  color: "var(--text-3)", fontSize: 13 }}>
+                  ยังไม่มีประกาศ — กด <b>ประกาศใหม่</b> เพื่อเริ่มต้น
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -1325,22 +1336,45 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
   };
 
   return (
-    <div className="card" style={{ padding: 22, position: "sticky", top: 20,
-      maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.45)",
+          backdropFilter: "blur(3px)",
+          WebkitBackdropFilter: "blur(3px)",
+          zIndex: 1000,
+        }}
+      />
+      {/* Dialog */}
+      <div style={{
+        position: "fixed", inset: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: 1001, padding: "24px 16px",
+        pointerEvents: "none",
+      }}>
+      <div className="card fade-in" style={{
+        width: "100%", maxWidth: 660,
+        maxHeight: "calc(100vh - 48px)", overflowY: "auto",
+        padding: 28, pointerEvents: "auto",
+        boxShadow: "var(--shadow-lg)",
+      }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-        marginBottom: 16 }}>
+        marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--primary)",
             letterSpacing: ".08em", textTransform: "uppercase",
             fontFamily: "var(--font-en)" }}>
-            {id === "new" ? "สร้างใหม่" : `แก้ไข ${id}`}
+            {id === "new" ? "สร้างประกาศใหม่" : `แก้ไข ${id}`}
           </div>
-          <h3 style={{ margin: "4px 0 0", fontSize: 16, fontWeight: 600 }}>
-            {id === "new" ? "ประกาศใหม่" : v.title}
+          <h3 style={{ margin: "4px 0 0", fontSize: 18, fontWeight: 600 }}>
+            {id === "new" ? "ประกาศรับสมัครคู่ค้า" : v.title}
           </h3>
         </div>
         <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose}>
-          <Icon name="x" size={16} />
+          <Icon name="x" size={18} />
         </button>
       </div>
 
@@ -1466,11 +1500,14 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
           <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>ยกเลิก</button>
           <button className="btn btn-primary" style={{ flex: 1 }}
             onClick={() => onSave(v)}>
-            {id === "new" ? "เผยแพร่ประกาศ" : "บันทึก"}
+            <Icon name="check" size={14} />
+            {id === "new" ? "เผยแพร่ประกาศ" : "บันทึกการเปลี่ยนแปลง"}
           </button>
         </div>
       </div>
     </div>
+    </div>
+    </>
   );
 };
 
