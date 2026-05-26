@@ -129,31 +129,35 @@ function VendorLanding({ goto }) {
                 ) : null}
 
                 {/* Pre-Q per category */}
-                <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-3)",
-                    letterSpacing: ".06em", textTransform: "uppercase",
-                    fontFamily: "var(--font-en)", marginBottom: 10 }}>
-                    กลุ่มงานที่เปิดรับสมัคร — ดาวน์โหลดฟอร์ม Pre-Qualification
+                <div>
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text)",
+                      marginBottom: 2 }}>
+                      กลุ่มงานที่เปิดรับสมัคร
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--text-2)" }}>
+                      ดาวน์โหลดฟอร์ม Pre-Qualification ของแต่ละกลุ่มงาน เพื่อทำแบบประเมิน
+                    </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {(a.categories || []).map(cid => {
                       const g = groupById && groupById[cid];
                       if (!g) return null;
-                      // find Pre-Q doc from announcement docs matching group
                       const preqDoc = (a.docs || []).find(d =>
                         d.name && d.name.toLowerCase().includes(g.id.toLowerCase())
                       );
                       return (
                         <div key={cid} style={{
                           display: "flex", alignItems: "center", gap: 12,
-                          padding: "10px 14px",
+                          padding: "12px 16px",
                           border: "1px solid var(--line)",
-                          background: "var(--surface)",
+                          background: "var(--surface-2)",
                           borderRadius: 10,
                           flexWrap: "wrap",
                         }}>
-                          <span style={{ fontSize: 18 }}>{g.icon}</span>
-                          <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{g.th}</span>
+                          <span style={{ fontSize: 20 }}>{g.icon}</span>
+                          <span style={{ fontWeight: 600, fontSize: 15, flex: 1,
+                            color: "var(--text)" }}>{g.th}</span>
                           <button
                             className="btn btn-soft btn-sm"
                             onClick={() => simDownload(`Pre-Q_${g.th}.pdf`, preqDoc?.url)}
@@ -166,30 +170,6 @@ function VendorLanding({ goto }) {
                     })}
                   </div>
                 </div>
-
-                {/* Other documents */}
-                {(a.docs || []).length ? (
-                  <div>
-                    <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-3)",
-                      letterSpacing: ".06em", textTransform: "uppercase",
-                      fontFamily: "var(--font-en)", marginBottom: 8 }}>
-                      เอกสารประกาศ ({a.docs.length} ไฟล์)
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {a.docs.map(d => (
-                        <button key={d.name} className="btn btn-ghost btn-sm"
-                          style={{ paddingLeft: 10, paddingRight: 12 }}
-                          onClick={() => simDownload(d.name, d.url)}>
-                          <Icon name="download" size={13} />
-                          <span style={{ maxWidth: 240, overflow: "hidden",
-                            textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
-                          {d.size ? <span style={{ color: "var(--text-3)", fontSize: 11,
-                            fontFamily: "var(--font-mono)", marginLeft: 4 }}>{d.size}</span> : null}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 160 }}>
                 <button className="btn btn-primary" onClick={() => goto("form", a.id)}>
