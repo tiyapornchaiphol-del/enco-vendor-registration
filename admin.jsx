@@ -89,6 +89,25 @@ function Toast({ toast }) {
   );
 }
 
+// Format date → "26 พ.ค. 2568"
+function fmtDate(str) {
+  if (!str) return "—";
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return str;
+  return d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+}
+
+// Format datetime → "26 พ.ค. 2568 10:30"
+function fmtDateTime(str) {
+  if (!str) return "—";
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return str;
+  return d.toLocaleDateString("th-TH", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
 // Auto-compute announcement status from dates
 function computeAnnoStatus(closedAt, openedAt) {
   if (!closedAt || !openedAt) return "draft";
@@ -594,7 +613,7 @@ const SubmissionsTable = ({ rows, goto, full = false }) => (
             </td>
           )}
           {full && <td style={{ color: "var(--text-2)", fontSize: 13 }}>{r.category}</td>}
-          <td style={{ color: "var(--text-2)", fontSize: 13 }}>{r.submittedAt}</td>
+          <td style={{ color: "var(--text-2)", fontSize: 13 }}>{fmtDateTime(r.submittedAt)}</td>
           {full && <td><Progress value={r.completeness} /></td>}
           <td><StatusChip status={r.status} /></td>
           <td><Icon name="chevron" size={16} style={{ color: "var(--text-3)" }} /></td>
@@ -688,7 +707,7 @@ function AdminDetail({ goto, id }) {
               <div style={{ display: "flex", alignItems: "center", gap: 10,
                 marginTop: 2, flexWrap: "wrap" }}>
                 <span style={{ color: "var(--text-2)", fontSize: 13.5 }}>
-                  {s.category} · ยื่นเมื่อ {s.submittedAt}
+                  {s.category} · ยื่นเมื่อ {fmtDateTime(s.submittedAt)}
                 </span>
                 {s.annoId && (
                   <span className="mono" style={{
@@ -1254,8 +1273,8 @@ function AdminAnnouncements({ goto }) {
                   </div>
                 </td>
                 <td style={{ color: "var(--text-2)", fontSize: 12.5 }}>
-                  {a.openedAt}<br />
-                  <span style={{ color: "var(--text-3)" }}>→ {a.closedAt}</span>
+                  {fmtDate(a.openedAt)}<br />
+                  <span style={{ color: "var(--text-3)" }}>→ {fmtDate(a.closedAt)}</span>
                 </td>
                 <td><StatusChip status={computeAnnoStatus(a.closedAt, a.openedAt)} map={ANNC_STATUS_LABEL} /></td>
                 <td>
