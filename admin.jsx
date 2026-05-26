@@ -1362,7 +1362,7 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
         const result = await window.uploadFileToStorage(f, 'announcements');
         if (!result?.url) throw new Error('no URL');
         uploaded.push(result);
-      } catch {
+      } catch (_err) {
         failed.push(f.name);
       }
     }
@@ -1377,13 +1377,13 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
   };
 
   const removeDoc = async (doc, i) => {
-    try { if (doc.path) await window.deleteFileFromStorage(doc.path); } catch {}
+    try { if (doc.path) await window.deleteFileFromStorage(doc.path); } catch (_e) {}
     setV(prev => ({ ...prev, docs: prev.docs.filter((_, j) => j !== i) }));
   };
 
   const removePreq = async (categoryId) => {
     const doc = (v.docs || []).find(d => d.categoryId === categoryId);
-    try { if (doc?.path) await window.deleteFileFromStorage(doc.path); } catch {}
+    try { if (doc?.path) await window.deleteFileFromStorage(doc.path); } catch (_e) {}
     setV(prev => ({ ...prev, docs: prev.docs.filter(d => d.categoryId !== categoryId) }));
   };
 

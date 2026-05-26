@@ -1,5 +1,65 @@
 // Main app shell: sidebar nav + page routing + Tweaks panel + topbar.
 
+// ── Error boundary (prevents blank page on render error) ─────────────────────
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error("🔴 App render error:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          minHeight: "100vh", padding: 24, background: "#f5f6f8",
+          fontFamily: "system-ui, sans-serif",
+        }}>
+          <div style={{
+            maxWidth: 480, width: "100%", background: "#fff",
+            border: "1px solid #e6e8ec", borderRadius: 16,
+            padding: "40px 36px", textAlign: "center",
+            boxShadow: "0 4px 16px rgba(0,0,0,.06)",
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
+            <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 8 }}>
+              เกิดข้อผิดพลาดในการโหลดหน้าเว็บ
+            </div>
+            <div style={{ fontSize: 13, color: "#6e7681", marginBottom: 24, lineHeight: 1.6 }}>
+              กรุณารีเฟรชหน้านี้ใหม่ หากปัญหายังคงอยู่ โปรดติดต่อผู้ดูแลระบบ
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: "10px 24px", background: "oklch(45% 0.13 250)",
+                color: "#fff", border: "none", borderRadius: 8,
+                fontSize: 14, fontWeight: 500, cursor: "pointer",
+              }}>
+              รีเฟรชหน้า
+            </button>
+            {this.state.error && (
+              <details style={{ marginTop: 20, textAlign: "left" }}>
+                <summary style={{ fontSize: 12, color: "#8a93a0", cursor: "pointer" }}>รายละเอียดข้อผิดพลาด</summary>
+                <pre style={{
+                  marginTop: 8, padding: 12, background: "#f5f6f8",
+                  borderRadius: 6, fontSize: 11, color: "#4a525e",
+                  overflowX: "auto", whiteSpace: "pre-wrap",
+                }}>{this.state.error.toString()}</pre>
+              </details>
+            )}
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function AdminLoginForm({ onLogin, onCancel }) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -70,7 +130,7 @@ function App() {
     try {
       const saved = localStorage.getItem("enco_admin_user");
       return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
+    } catch (_e) { return null; }
   });
   const [showAdminLogin, setShowAdminLogin] = React.useState(false);
   const isAdmin = adminUser !== null;
@@ -83,10 +143,10 @@ function App() {
       // Only restore admin pages if admin is logged in
       if (savedPage.startsWith("admin") && !isAdminSaved) return "landing";
       return savedPage;
-    } catch { return "landing"; }
+    } catch (_e) { return "landing"; }
   });
   const [detailId, setDetailId] = React.useState(() => {
-    try { return localStorage.getItem("enco_detail_id") || null; } catch { return null; }
+    try { return localStorage.getItem("enco_detail_id") || null; } catch (_e) { return null; }
   });
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
@@ -96,7 +156,7 @@ function App() {
       localStorage.setItem("enco_page", page);
       if (detailId) localStorage.setItem("enco_detail_id", detailId);
       else localStorage.removeItem("enco_detail_id");
-    } catch {}
+    } catch (_e) {}
   }, [page, detailId]);
 
   // Save admin session to localStorage
@@ -104,7 +164,7 @@ function App() {
     try {
       if (adminUser) localStorage.setItem("enco_admin_user", JSON.stringify(adminUser));
       else localStorage.removeItem("enco_admin_user");
-    } catch {}
+    } catch (_e) {}
   }, [adminUser]);
 
   // Fetch data from Supabase (includes groups, announcements, submissions, categories)
@@ -996,4 +1056,8 @@ function AdminUsersPlaceholder() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>
+);

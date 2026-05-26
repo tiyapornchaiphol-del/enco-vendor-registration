@@ -288,20 +288,20 @@ const validatePhone = (phone) => {
 
 // Auto-format Thai phone number with dashes as user types
 // Bangkok (02-XXXX-XXXX) vs Mobile/Provincial (0XX-XXX-XXXX)
-const autoFormatPhone = (value) => {
-  const digits = value.replace(/\D/g, "").slice(0, 10);
+function autoFormatPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 10);
   if (!digits) return "";
   if (digits.startsWith("02")) {
     // Bangkok: 02-XXXX-XXXX
     if (digits.length <= 2) return digits;
-    if (digits.length <= 6) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
-    return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+    if (digits.length <= 6) return digits.slice(0, 2) + "-" + digits.slice(2);
+    return digits.slice(0, 2) + "-" + digits.slice(2, 6) + "-" + digits.slice(6);
   }
   // Mobile / Provincial: 0XX-XXX-XXXX
   if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-};
+  if (digits.length <= 6) return digits.slice(0, 3) + "-" + digits.slice(3);
+  return digits.slice(0, 3) + "-" + digits.slice(3, 6) + "-" + digits.slice(6);
+}
 
 const validateEmail = (email) => {
   if (!email) return null;
