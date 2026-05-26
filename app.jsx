@@ -368,100 +368,174 @@ const Breadcrumb = ({ page, detailId, role, goto }) => {
 
 // ── ทะเบียนรายชื่อผู้ค้า (Vendor-facing) ────────────────────────────────────
 function VendorRegistry({ goto }) {
-  const { submissions, groups } = useData();
-  const groupById = Object.fromEntries((groups || []).map(g => [g.id, g]));
-  const approved = (submissions || []).filter(s => s.status === "approved");
+  const [docs, setDocs] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
 
   const fmtDate = (str) => {
     if (!str) return "—";
     const d = new Date(str);
     if (isNaN(d.getTime())) return str;
-    return d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+    return d.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
   };
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const data = await window.getAvlDocumentsFromDb();
+        setDocs(data || []);
+      } catch (e) {
+        console.error("AVL fetch error:", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   return (
     <div className="fade-in">
       <SectionHeader
         eyebrow="Vendor Portal · AVL"
         title="ทะเบียนรายชื่อผู้ค้า"
-        desc="รายชื่อผู้ค้าที่ผ่านการประเมินและขึ้นทะเบียนกับ EnCo (Approved Vendor List)"
+        desc="ประกาศรายชื่อผู้ค้าที่ผ่านการคัดเลือกและขึ้นทะเบียนกับ EnCo (Approved Vendor List)"
         action={
           <button className="btn btn-ghost btn-sm" onClick={() => goto("landing")}>
             <Icon name="arrowLeft" size={14} /> กลับหน้าหลัก
           </button>
         }
       />
-      <div className="card" style={{ overflow: "hidden" }}>
-        {approved.length === 0 ? (
-          <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--text-3)" }}>
-            <Icon name="building" size={32} style={{ opacity: .3, marginBottom: 12 }} />
-            <div style={{ fontSize: 14 }}>ยังไม่มีรายชื่อผู้ค้าที่ขึ้นทะเบียน</div>
+
+      {loading ? (
+        <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--text-3)" }}>
+          กำลังโหลด...
+        </div>
+      ) : docs.length === 0 ? (
+        <div className="card" style={{ padding: "72px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 8 }}>
+            ยังไม่มีประกาศทะเบียนรายชื่อผู้ค้า
           </div>
-        ) : (
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th style={{ width: 56 }}>ลำดับ</th>
-                <th>บริษัท</th>
-                <th style={{ width: 200 }}>กลุ่มงาน</th>
-                <th style={{ width: 160 }}>วันที่ขึ้นทะเบียน</th>
-                <th style={{ width: 100 }}>สถานะ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {approved.map((v, i) => {
-                const g = groupById[v.category];
-                return (
-                  <tr key={v.id}>
-                    <td style={{ color: "var(--text-3)", fontSize: 13, textAlign: "center" }}>{i + 1}</td>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <Avatar name={v.company} size={30} />
-                        <div>
-                          <div style={{ fontWeight: 500, fontSize: 13.5 }}>{v.company}</div>
-                          <div className="mono" style={{ fontSize: 11.5, color: "var(--text-3)" }}>{v.taxId}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      {g ? (
-                        <span className="pill" style={{ background: "var(--primary-soft)",
-                          color: "var(--primary-ink)", fontSize: 12 }}>
-                          {g.icon} {g.th}
-                        </span>
-                      ) : (
-                        <span style={{ color: "var(--text-2)", fontSize: 13 }}>{v.category}</span>
-                      )}
-                    </td>
-                    <td style={{ color: "var(--text-2)", fontSize: 13 }}>{fmtDate(v.submittedAt)}</td>
-                    <td>
-                      <span className="pill" style={{ background: "var(--success-soft)",
-                        color: "oklch(38% 0.11 155)", fontSize: 12 }}>
-                        <span className="pill-dot" /> อยู่ในทะเบียน
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+          <div style={{ fontSize: 13, color: "var(--text-3)" }}>
+            เมื่อ EnCo ประกาศผลการคัดเลือก เอกสารจะปรากฏที่นี่
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {docs.map(doc => (
+            <div key={doc.id} className="card" style={{
+              padding: "20px 24px",
+              display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap",
+            }}>
+              {/* PDF icon */}
+              <div style={{
+                width: 48, height: 48, borderRadius: 10, flexShrink: 0,
+                background: "var(--danger-soft)", display: "flex",
+                alignItems: "center", justifyContent: "center",
+                fontSize: 22,
+              }}>📄</div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14.5, marginBottom: 4 }}>
+                  {doc.note || doc.name}
+                </div>
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
+                    {doc.name}
+                  </span>
+                  <span style={{ fontSize: 12, color: "var(--text-3)" }}>
+                    เผยแพร่ {fmtDate(doc.uploadedAt)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                  className="btn btn-ghost btn-sm">
+                  <Icon name="eye" size={14} /> เปิดดู
+                </a>
+                <a href={doc.url} download={doc.name}
+                  className="btn btn-soft btn-sm">
+                  <Icon name="download" size={14} /> ดาวน์โหลด
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 // ── ทะเบียนรายชื่อผู้ค้า (Admin-facing) ─────────────────────────────────────
 function AdminVendorRegistry({ goto }) {
-  const { submissions, groups } = useData();
-  const groupById = Object.fromEntries((groups || []).map(g => [g.id, g]));
-  const approved = (submissions || []).filter(s => s.status === "approved");
+  const [docs, setDocs] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [uploading, setUploading] = React.useState(false);
+  const [noteModal, setNoteModal] = React.useState(null); // pending file waiting for note
+  const [noteText, setNoteText] = React.useState("");
+  const fileRef = React.useRef();
 
-  const fmtDate = (str) => {
+  const fmtDateTime = (str) => {
     if (!str) return "—";
     const d = new Date(str);
     if (isNaN(d.getTime())) return str;
-    return d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+    return d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) +
+      " " + d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const loadDocs = async () => {
+    try {
+      const data = await window.getAvlDocumentsFromDb();
+      setDocs(data || []);
+    } catch (e) {
+      console.error("AVL load error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => { loadDocs(); }, []);
+
+  // Step 1: pick file → show note modal
+  const handlePickFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setNoteText("");
+    setNoteModal(file);
+  };
+
+  // Step 2: confirm note → upload + save to DB
+  const handleConfirmUpload = async () => {
+    if (!noteModal) return;
+    setUploading(true);
+    setNoteModal(null);
+    try {
+      const result = await window.uploadFileToStorage(noteModal, "avl");
+      const saved = await window.createAvlDocumentInDb({
+        name:  result.name,
+        url:   result.url,
+        path:  result.path,
+        note:  noteText.trim(),
+      });
+      setDocs(prev => [saved, ...prev]);
+    } catch (e) {
+      alert("อัปโหลดไม่สำเร็จ: " + (e.message || e));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (doc) => {
+    if (!confirm(`ลบไฟล์ "${doc.note || doc.name}" ออกจากระบบ?`)) return;
+    try {
+      await window.deleteFileFromStorage(doc.path);
+      await window.deleteAvlDocumentInDb(doc.id);
+      setDocs(prev => prev.filter(d => d.id !== doc.id));
+    } catch (e) {
+      alert("ลบไม่สำเร็จ: " + (e.message || e));
+    }
   };
 
   return (
@@ -469,70 +543,147 @@ function AdminVendorRegistry({ goto }) {
       <SectionHeader
         eyebrow="Admin · Approved Vendor List"
         title="ทะเบียนรายชื่อผู้ค้า"
-        desc={`ผู้ค้าที่ผ่านการขึ้นทะเบียนแล้ว ${approved.length} ราย`}
+        desc="อัปโหลดเอกสารประกาศรายชื่อผู้ค้าที่ผ่านการคัดเลือก (PDF)"
+        action={
+          <>
+            <input ref={fileRef} type="file" accept=".pdf"
+              style={{ display: "none" }} onChange={handlePickFile} />
+            <button className="btn btn-primary btn-sm"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}>
+              {uploading
+                ? <><span style={{ display: "inline-block", width: 13, height: 13, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} /> กำลังอัปโหลด...</>
+                : <><Icon name="upload" size={14} /> อัปโหลด PDF</>
+              }
+            </button>
+          </>
+        }
       />
-      <div className="card" style={{ overflow: "hidden" }}>
-        {approved.length === 0 ? (
-          <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--text-3)" }}>
-            <div style={{ fontSize: 14 }}>ยังไม่มีรายชื่อผู้ค้าที่ขึ้นทะเบียน</div>
-            <div style={{ fontSize: 12.5, marginTop: 6 }}>
-              อนุมัติใบสมัครในหน้า <b>ใบสมัครคู่ค้า</b> เพื่อเพิ่มในทะเบียน
-            </div>
+
+      {loading ? (
+        <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--text-3)" }}>
+          กำลังโหลด...
+        </div>
+      ) : docs.length === 0 ? (
+        <div className="card" style={{ padding: "72px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>📂</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 8 }}>
+            ยังไม่มีเอกสารทะเบียนผู้ค้า
           </div>
-        ) : (
+          <div style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 20 }}>
+            กดปุ่ม "อัปโหลด PDF" เพื่อเพิ่มประกาศรายชื่อผู้ค้าที่ผ่านการคัดเลือก
+          </div>
+          <button className="btn btn-primary btn-sm"
+            onClick={() => fileRef.current?.click()} disabled={uploading}>
+            <Icon name="upload" size={14} /> อัปโหลด PDF
+          </button>
+        </div>
+      ) : (
+        <div className="card" style={{ overflow: "hidden" }}>
           <table className="tbl">
             <thead>
               <tr>
-                <th style={{ width: 56 }}>ลำดับ</th>
-                <th>บริษัท</th>
-                <th style={{ width: 130 }}>เลขผู้เสียภาษี</th>
-                <th style={{ width: 180 }}>กลุ่มงาน</th>
-                <th style={{ width: 130 }}>ผู้ติดต่อ</th>
-                <th style={{ width: 140 }}>วันที่อนุมัติ</th>
-                <th style={{ width: 110 }}>สถานะ</th>
+                <th>ชื่อประกาศ</th>
+                <th>ไฟล์</th>
+                <th style={{ width: 160 }}>วันที่อัปโหลด</th>
+                <th style={{ width: 110 }}></th>
               </tr>
             </thead>
             <tbody>
-              {approved.map((v, i) => {
-                const g = groupById[v.category];
-                return (
-                  <tr key={v.id}>
-                    <td style={{ color: "var(--text-3)", fontSize: 13, textAlign: "center" }}>{i + 1}</td>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <Avatar name={v.company} size={30} />
-                        <div>
-                          <div style={{ fontWeight: 500, fontSize: 13.5 }}>{v.company}</div>
-                          <div style={{ fontSize: 12, color: "var(--text-3)" }}>{v.email || v.companyEmail}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="mono" style={{ fontSize: 12.5, color: "var(--text-2)" }}>{v.taxId}</td>
-                    <td>
-                      {g ? (
-                        <span className="pill" style={{ background: "var(--primary-soft)",
-                          color: "var(--primary-ink)", fontSize: 12 }}>
-                          {g.icon} {g.th}
-                        </span>
-                      ) : (
-                        <span style={{ color: "var(--text-2)", fontSize: 13 }}>{v.category}</span>
-                      )}
-                    </td>
-                    <td style={{ fontSize: 13, color: "var(--text-2)" }}>{v.contact}</td>
-                    <td style={{ fontSize: 13, color: "var(--text-2)" }}>{fmtDate(v.submittedAt)}</td>
-                    <td>
-                      <span className="pill" style={{ background: "var(--success-soft)",
-                        color: "oklch(38% 0.11 155)", fontSize: 12 }}>
-                        <span className="pill-dot" /> อยู่ในทะเบียน
+              {docs.map(doc => (
+                <tr key={doc.id}>
+                  <td style={{ fontWeight: 500 }}>
+                    {doc.note || <span style={{ color: "var(--text-3)", fontStyle: "italic" }}>—</span>}
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 16 }}>📄</span>
+                      <span className="mono" style={{ fontSize: 12.5, color: "var(--text-2)" }}>
+                        {doc.name}
                       </span>
-                    </td>
-                  </tr>
-                );
-              })}
+                    </div>
+                  </td>
+                  <td style={{ fontSize: 13, color: "var(--text-2)" }}>
+                    {fmtDateTime(doc.uploadedAt)}
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                        className="btn btn-ghost btn-sm btn-icon" title="เปิดดู">
+                        <Icon name="eye" size={14} />
+                      </a>
+                      <button className="btn btn-ghost btn-sm btn-icon" title="ลบ"
+                        style={{ color: "var(--danger)" }}
+                        onClick={() => handleDelete(doc)}>
+                        <Icon name="trash" size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Note modal — กรอกชื่อประกาศก่อนอัปโหลด */}
+      {noteModal && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1000,
+          background: "rgba(0,0,0,.45)", backdropFilter: "blur(3px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+        }} onClick={() => setNoteModal(null)}>
+          <div className="card" style={{ width: "100%", maxWidth: 480, padding: 28 }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between",
+              alignItems: "center", marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>อัปโหลดเอกสาร AVL</h3>
+              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setNoteModal(null)}>
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+
+            {/* File info */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+              background: "var(--surface-2)", borderRadius: 10, border: "1px solid var(--line)",
+              marginBottom: 18 }}>
+              <span style={{ fontSize: 22 }}>📄</span>
+              <div>
+                <div style={{ fontWeight: 500, fontSize: 13.5 }}>{noteModal.name}</div>
+                <div style={{ fontSize: 12, color: "var(--text-3)" }}>
+                  {(noteModal.size / 1024 / 1024).toFixed(2)} MB
+                </div>
+              </div>
+            </div>
+
+            {/* Note input */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)",
+                display: "block", marginBottom: 6 }}>
+                ชื่อประกาศ <span style={{ color: "var(--text-3)", fontWeight: 400 }}>(ไม่บังคับ)</span>
+              </label>
+              <input className="input" value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                placeholder="เช่น ประกาศรายชื่อผู้ค้าที่ผ่านการคัดเลือก ปี 2568"
+                style={{ width: "100%" }}
+                autoFocus
+                onKeyDown={e => e.key === "Enter" && handleConfirmUpload()} />
+              <div className="help" style={{ marginTop: 6 }}>
+                ชื่อนี้จะแสดงให้ผู้ค้าเห็นในหน้าทะเบียนรายชื่อผู้ค้า
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button className="btn btn-ghost" onClick={() => setNoteModal(null)}>ยกเลิก</button>
+              <button className="btn btn-primary" onClick={handleConfirmUpload}>
+                <Icon name="upload" size={14} /> อัปโหลด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

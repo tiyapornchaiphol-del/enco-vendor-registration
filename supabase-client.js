@@ -489,6 +489,75 @@ async function deleteAnnouncementInDb(id) {
   }
 }
 
+// ─── AVL Document Functions (ทะเบียนรายชื่อผู้ค้า) ───
+
+// Get all AVL documents
+async function getAvlDocumentsFromDb() {
+  try {
+    const { data, error } = await supabase
+      .from('avl_documents')
+      .select('*')
+      .order('uploaded_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(row => ({
+      id:         row.id,
+      name:       row.name,
+      url:        row.url,
+      path:       row.path,
+      note:       row.note || '',
+      uploadedAt: row.uploaded_at,
+    }));
+  } catch (err) {
+    console.error('❌ Error fetching AVL documents:', err);
+    return [];
+  }
+}
+
+// Create AVL document record
+async function createAvlDocumentInDb(docData) {
+  try {
+    const { data, error } = await supabase
+      .from('avl_documents')
+      .insert([{
+        name:  docData.name,
+        url:   docData.url,
+        path:  docData.path,
+        note:  docData.note || '',
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    console.log('✅ AVL document created:', docData.name);
+    return {
+      id:         data.id,
+      name:       data.name,
+      url:        data.url,
+      path:       data.path,
+      note:       data.note || '',
+      uploadedAt: data.uploaded_at,
+    };
+  } catch (err) {
+    console.error('❌ Error creating AVL document:', err);
+    throw err;
+  }
+}
+
+// Delete AVL document record
+async function deleteAvlDocumentInDb(id) {
+  try {
+    const { error } = await supabase
+      .from('avl_documents')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    console.log('✅ AVL document deleted:', id);
+    return true;
+  } catch (err) {
+    console.error('❌ Error deleting AVL document:', err);
+    throw err;
+  }
+}
+
 // Export functions
 Object.assign(window, {
   supabase,
@@ -510,5 +579,8 @@ Object.assign(window, {
   getAllAdmins,
   createAdmin,
   updateAdmin,
-  deactivateAdmin
+  deactivateAdmin,
+  getAvlDocumentsFromDb,
+  createAvlDocumentInDb,
+  deleteAvlDocumentInDb,
 });
