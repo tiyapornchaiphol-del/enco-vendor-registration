@@ -149,31 +149,55 @@ function VendorLanding({ goto }) {
                         <div key={cid} style={{
                           display: "flex", alignItems: "center", gap: 12,
                           padding: "12px 16px",
-                          border: "1px solid var(--line)",
-                          background: "var(--surface-2)",
+                          border: `1px solid ${hasFile ? "var(--primary-border)" : "var(--line)"}`,
+                          background: hasFile ? "var(--primary-soft)" : "var(--surface-2)",
                           borderRadius: 10,
                           flexWrap: "wrap",
                         }}>
                           <span style={{ fontSize: 20 }}>{g.icon}</span>
-                          <span style={{ fontWeight: 600, fontSize: 15, flex: 1,
-                            color: "var(--text)" }}>{g.th}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: 15, color: "var(--text)" }}>
+                              {g.th}
+                            </div>
+                            {hasFile && (
+                              <div style={{ fontSize: 11.5, color: "var(--primary)", marginTop: 2,
+                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {preqDoc.name}
+                              </div>
+                            )}
+                          </div>
                           {hasFile ? (
-                            <a
-                              href={preqDoc.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn btn-soft btn-sm"
-                              style={{ textDecoration: "none" }}
-                            >
-                              <Icon name="download" size={13} />
-                              ดาวน์โหลด Pre-Q
-                            </a>
+                            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                              {/* เปิดดูใน browser */}
+                              <a
+                                href={preqDoc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-ghost btn-sm"
+                                style={{ textDecoration: "none" }}
+                                title="เปิดดูในหน้าต่างใหม่"
+                              >
+                                <Icon name="eye" size={13} />
+                                เปิดดู
+                              </a>
+                              {/* ดาวน์โหลด */}
+                              <a
+                                href={preqDoc.url}
+                                download={preqDoc.name}
+                                className="btn btn-soft btn-sm"
+                                style={{ textDecoration: "none" }}
+                                title="ดาวน์โหลดไฟล์"
+                              >
+                                <Icon name="download" size={13} />
+                                ดาวน์โหลด
+                              </a>
+                            </div>
                           ) : (
                             <span style={{
                               fontSize: 12, color: "var(--text-3)",
                               padding: "5px 10px",
                               border: "1px dashed var(--line)",
-                              borderRadius: 6,
+                              borderRadius: 6, flexShrink: 0,
                             }}>
                               ยังไม่มีไฟล์
                             </span>

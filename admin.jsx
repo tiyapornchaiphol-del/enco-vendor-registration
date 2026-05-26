@@ -1322,28 +1322,28 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
                                  : [...(v.categories || []), cid] });
   };
 
-  const formatBytes = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b/1024).toFixed(0) + ' KB' : (b/1048576).toFixed(1) + ' MB';
-
-  const uploadFile = async (file, folder = 'announcements') => {
-    try {
-      return await window.uploadFileToStorage(file, folder);
-    } catch {
-      return { name: file.name, size: formatBytes(file.size), url: null, path: null };
-    }
-  };
-
   // อัปโหลดไฟล์ Pre-Q สำหรับกลุ่มงานที่ระบุ
   const handlePreqUpload = async (categoryId, e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
     try {
-      const result = await uploadFile(file);
-      const preqDoc = { ...result, categoryId };
+      const result = await window.uploadFileToStorage(file, 'announcements');
+      if (!result?.url) throw new Error('ไม่ได้รับ URL จาก Storage');
       setV(prev => ({
         ...prev,
-        docs: [...(prev.docs || []).filter(d => d.categoryId !== categoryId), preqDoc],
+        docs: [
+          ...(prev.docs || []).filter(d => d.categoryId !== categoryId),
+          { ...result, categoryId },
+        ],
       }));
+    } catch (err) {
+      console.error('Pre-Q upload error:', err);
+      alert(
+        'อัปโหลดไม่สำเร็จ ❌\n\n' +
+        (err.message || 'ไม่ทราบสาเหตุ') + '\n\n' +
+        'กรุณารัน setup-storage.sql ใน Supabase SQL Editor ก่อน'
+      );
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -1355,15 +1355,24 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     setUploading(true);
-    try {
-      const uploaded = [];
-      for (const f of files) {
-        uploaded.push(await uploadFile(f));
+    const uploaded = [];
+    const failed = [];
+    for (const f of files) {
+      try {
+        const result = await window.uploadFileToStorage(f, 'announcements');
+        if (!result?.url) throw new Error('no URL');
+        uploaded.push(result);
+      } catch {
+        failed.push(f.name);
       }
+    }
+    setUploading(false);
+    e.target.value = '';
+    if (uploaded.length > 0) {
       setV(prev => ({ ...prev, docs: [...(prev.docs || []), ...uploaded] }));
-    } finally {
-      setUploading(false);
-      e.target.value = '';
+    }
+    if (failed.length > 0) {
+      alert('อัปโหลดไม่สำเร็จ: ' + failed.join(', ') + '\n\nกรุณารัน setup-storage.sql ก่อน');
     }
   };
 
