@@ -282,7 +282,7 @@ function VendorLanding({ goto }) {
 const validatePhone = (phone) => {
   if (!phone) return null;
   const pattern = /^(0\d{1,2})-(\d{3,4})-(\d{4})$/;
-  if (!pattern.test(phone)) return "รูปแบบเบอร์โทรไม่ถูกต้อง (ระบบ: 02-555-1234 หรือ 081-234-5678)";
+  if (!pattern.test(phone)) return "รูปแบบเบอร์โทรไม่ถูกต้อง (เช่น 081-234-5678)";
   return null;
 };
 
@@ -317,7 +317,7 @@ function VendorForm({ goto, annoId }) {
     address: "",
     subDistrict: "",
     district: "",
-    province: "",
+    province: "กรุงเทพมหานคร",
     postalCode: "",
     phone: "",
     mobile: "",
@@ -342,11 +342,14 @@ function VendorForm({ goto, annoId }) {
   const validateField = (key, value) => {
     const v = String(value || "").trim();
 
-    // Required check
+    // Company phone is optional — no required check, no format check
+    if (key === "phone") return null;
+
+    // Required check for all other fields
     if (!v) return "กรุณากรอกข้อมูลให้ครบถ้วน";
 
-    // Phone validation
-    if (key === "phone" || key === "mobile" || key === "contactPhone") {
+    // Phone format validation (mobile only — required)
+    if (key === "mobile" || key === "contactPhone") {
       return validatePhone(v);
     }
 
@@ -372,6 +375,19 @@ function VendorForm({ goto, annoId }) {
     }
   };
 
+  // Capital field — auto-comma (1,000,000) on input
+  const updateCapital = (e) => {
+    const raw = e.target.value.replace(/[^0-9]/g, "");
+    const formatted = raw ? parseInt(raw, 10).toLocaleString("en-US") : "";
+    setForm(f => ({ ...f, capital: formatted }));
+    setErrors(err => {
+      const n = { ...err };
+      if (!formatted) n.capital = "กรุณากรอกข้อมูลให้ครบถ้วน";
+      else delete n.capital;
+      return n;
+    });
+  };
+
   // Step validation
   const validateStep = (s) => {
     if (s === 0) {
@@ -381,7 +397,7 @@ function VendorForm({ goto, annoId }) {
     }
     if (s === 1) {
       const need = ["vendorName","taxId","years","address","subDistrict",
-        "district","province","postalCode","phone","mobile","email","capital"];
+        "district","province","postalCode","mobile","email","capital"];
       const newErrors = {};
       const empty = [];
       need.forEach(k => {
@@ -601,7 +617,7 @@ function VendorForm({ goto, annoId }) {
       {/* Form body */}
       <div className="card" style={{ padding: "28px 32px", marginBottom: 16 }}>
         {step === 0 && <StepCategory form={form} setForm={setForm} annc={targetAnnc} />}
-        {step === 1 && <StepCompany form={form} update={update} errors={errors} />}
+        {step === 1 && <StepCompany form={form} update={update} errors={errors} updateCapital={updateCapital} />}
         {step === 2 && <StepContact form={form} update={update} errors={errors} />}
         {step === 3 && <StepDocs form={form} files={files} setFiles={setFiles} />}
         {step === 4 && <StepReview form={form} files={files} consent={consent} setConsent={setConsent} />}
@@ -631,15 +647,12 @@ function VendorForm({ goto, annoId }) {
             <Icon name="arrowLeft" size={14} /> ก่อนหน้า
           </button>
           {step < STEPS.length - 1 ? (
-            <button className="btn btn-primary" onClick={goNext}
-              disabled={!currentValid.ok}
-              title={currentValid.ok ? "" : currentValid.msg}>
+            <button className="btn btn-primary" onClick={goNext}>
               ถัดไป <Icon name="arrowRight" size={14} />
             </button>
           ) : (
             <button className="btn btn-primary" onClick={submit}
-              disabled={!currentValid.ok || submitting}
-              title={currentValid.ok ? "" : currentValid.msg}>
+              disabled={submitting}>
               {submitting
                 ? (submitStep || "กำลังส่ง...")
                 : <><span>ส่งใบสมัคร</span> <Icon name="check" size={14} /></>}
@@ -722,7 +735,7 @@ const StepCategory = ({ form, setForm, annc }) => {
   );
 };
 
-const StepCompany = ({ form, update, errors }) => (
+const StepCompany = ({ form, update, errors, updateCapital }) => (
   <div>
     <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 600 }}>ข้อมูลทั่วไป</h3>
     <p style={{ margin: "0 0 24px", color: "var(--text-2)", fontSize: 14 }}>
@@ -760,7 +773,7 @@ const StepCompany = ({ form, update, errors }) => (
       <Field label="รหัสไปรษณีย์" required error={errors.postalCode}>
         <input className="input mono" value={form.postalCode} onChange={update("postalCode")} style={{ borderColor: errors.postalCode ? "var(--danger)" : undefined }} />
       </Field>
-      <Field label="โทรศัพท์ (บริษัท)" required hint="รูปแบบ: 02-555-1234" error={errors.phone}>
+      <Field label="โทรศัพท์ (บริษัท)" hint="ไม่บังคับ" error={errors.phone}>
         <input className="input mono" value={form.phone} onChange={update("phone")} placeholder="02-555-1234" style={{ borderColor: errors.phone ? "var(--danger)" : undefined }} />
       </Field>
       <Field label="โทรศัพท์มือถือ" required hint="รูปแบบ: 081-234-5678" error={errors.mobile}>
@@ -770,7 +783,9 @@ const StepCompany = ({ form, update, errors }) => (
         <input className="input mono" value={form.email} onChange={update("email")} placeholder="contact@example.com" style={{ borderColor: errors.email ? "var(--danger)" : undefined }} />
       </Field>
       <Field label="ทุนจดทะเบียน (บาท)" required span={2} error={errors.capital}>
-        <input className="input num" value={form.capital} onChange={update("capital")} style={{ borderColor: errors.capital ? "var(--danger)" : undefined }} />
+        <input className="input num" value={form.capital} onChange={updateCapital}
+          placeholder="เช่น 1,000,000"
+          style={{ borderColor: errors.capital ? "var(--danger)" : undefined }} />
       </Field>
     </div>
   </div>
