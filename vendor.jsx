@@ -143,9 +143,7 @@ function VendorLanding({ goto }) {
                     {(a.categories || []).map(cid => {
                       const g = groupById && groupById[cid];
                       if (!g) return null;
-                      const preqDoc = (a.docs || []).find(d =>
-                        d.name && d.name.toLowerCase().includes(g.id.toLowerCase())
-                      );
+                      const preqDoc = (a.docs || []).find(d => d.categoryId === cid);
                       const hasFile = !!(preqDoc?.url);
                       return (
                         <div key={cid} style={{

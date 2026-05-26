@@ -1322,6 +1322,35 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
                                  : [...(v.categories || []), cid] });
   };
 
+  const formatBytes = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b/1024).toFixed(0) + ' KB' : (b/1048576).toFixed(1) + ' MB';
+
+  const uploadFile = async (file, folder = 'announcements') => {
+    try {
+      return await window.uploadFileToStorage(file, folder);
+    } catch {
+      return { name: file.name, size: formatBytes(file.size), url: null, path: null };
+    }
+  };
+
+  // อัปโหลดไฟล์ Pre-Q สำหรับกลุ่มงานที่ระบุ
+  const handlePreqUpload = async (categoryId, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const result = await uploadFile(file);
+      const preqDoc = { ...result, categoryId };
+      setV(prev => ({
+        ...prev,
+        docs: [...(prev.docs || []).filter(d => d.categoryId !== categoryId), preqDoc],
+      }));
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  // อัปโหลดเอกสารแนบทั่วไป (ไม่มี categoryId)
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -1329,14 +1358,7 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
     try {
       const uploaded = [];
       for (const f of files) {
-        try {
-          const result = await window.uploadFileToStorage(f, 'announcements');
-          uploaded.push(result);
-        } catch (err) {
-          console.error('Upload error for', f.name, err);
-          // If storage not set up, save filename only
-          uploaded.push({ name: f.name, size: formatBytes(f.size), url: null, path: null });
-        }
+        uploaded.push(await uploadFile(f));
       }
       setV(prev => ({ ...prev, docs: [...(prev.docs || []), ...uploaded] }));
     } finally {
@@ -1345,13 +1367,15 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
     }
   };
 
-  const formatBytes = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b/1024).toFixed(0) + ' KB' : (b/1048576).toFixed(1) + ' MB';
-
   const removeDoc = async (doc, i) => {
-    try {
-      if (doc.path) await window.deleteFileFromStorage(doc.path);
-    } catch {}
+    try { if (doc.path) await window.deleteFileFromStorage(doc.path); } catch {}
     setV(prev => ({ ...prev, docs: prev.docs.filter((_, j) => j !== i) }));
+  };
+
+  const removePreq = async (categoryId) => {
+    const doc = (v.docs || []).find(d => d.categoryId === categoryId);
+    try { if (doc?.path) await window.deleteFileFromStorage(doc.path); } catch {}
+    setV(prev => ({ ...prev, docs: prev.docs.filter(d => d.categoryId !== categoryId) }));
   };
 
   return (
@@ -1459,59 +1483,121 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
             onChange={(e) => setV({ ...v, summary: e.target.value })} />
         </Field>
 
+        {/* ── ส่วนที่ 1: Pre-Q ต่อกลุ่มงาน ── */}
+        {(v.categories || []).length > 0 && (
+          <div>
+            <div className="label" style={{ marginBottom: 4 }}>ฟอร์ม Pre-Qualification ต่อกลุ่มงาน</div>
+            <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 10 }}>
+              อัปโหลดไฟล์ Pre-Q แยกต่อกลุ่มงาน — ผู้ค้าจะเห็นปุ่มดาวน์โหลดในหน้าประกาศ
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {(v.categories || []).map(cid => {
+                const g = groups.find(x => x.id === cid);
+                if (!g) return null;
+                const preqDoc = (v.docs || []).find(d => d.categoryId === cid);
+                return (
+                  <div key={cid} style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "10px 12px",
+                    border: `1px solid ${preqDoc ? "var(--success)" : "var(--line)"}`,
+                    background: preqDoc ? "var(--success-soft)" : "var(--surface)",
+                    borderRadius: 8,
+                  }}>
+                    <span style={{ fontSize: 16 }}>{g.icon}</span>
+                    <span style={{ flex: 1, fontWeight: 500, fontSize: 13 }}>{g.th}</span>
+                    {preqDoc ? (
+                      <>
+                        <Icon name="file" size={13} style={{ color: "oklch(38% 0.11 155)" }} />
+                        {preqDoc.url ? (
+                          <a href={preqDoc.url} target="_blank" rel="noopener noreferrer"
+                            style={{ fontSize: 12, color: "oklch(38% 0.11 155)", fontWeight: 500,
+                              maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis",
+                              whiteSpace: "nowrap" }}>
+                            {preqDoc.name}
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: 12, color: "oklch(38% 0.11 155)", fontWeight: 500 }}>
+                            {preqDoc.name}
+                          </span>
+                        )}
+                        <button className="btn btn-ghost btn-sm btn-icon"
+                          onClick={() => removePreq(cid)}>
+                          <Icon name="trash" size={12} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>ยังไม่มีไฟล์</span>
+                        <label style={{ cursor: uploading ? "not-allowed" : "pointer" }}>
+                          <span className="btn btn-ghost btn-sm"
+                            style={{ pointerEvents: uploading ? "none" : "auto",
+                              opacity: uploading ? 0.5 : 1 }}>
+                            <Icon name="upload" size={12} />
+                            {uploading ? "กำลังอัปโหลด..." : "อัปโหลด"}
+                          </span>
+                          <input type="file" disabled={uploading}
+                            accept=".pdf,.doc,.docx,.xls,.xlsx"
+                            style={{ display: "none" }}
+                            onChange={(e) => handlePreqUpload(cid, e)} />
+                        </label>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── ส่วนที่ 2: เอกสารแนบทั่วไป ── */}
         <div>
           <div className="label" style={{ marginBottom: 8 }}>
-            <span>เอกสารแนบประกาศ</span>
+            <span>เอกสารแนบทั่วไป</span>
             <span style={{ color: "var(--text-3)", fontWeight: 400, fontSize: 12 }}>
-              ({v.docs?.length || 0} ไฟล์)
+              ({(v.docs || []).filter(d => !d.categoryId).length} ไฟล์)
             </span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
-            {(v.docs || []).map((d, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
-                border: "1px solid var(--line)", borderRadius: 8, fontSize: 12.5,
-              }}>
-                <Icon name="file" size={14} style={{ color: "var(--primary)" }} />
-                {d.url ? (
-                  <a href={d.url} target="_blank" rel="noopener noreferrer"
-                    className="mono" style={{ flex: 1, overflow: "hidden",
-                    textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--primary)" }}>
-                    {d.name}
-                  </a>
-                ) : (
-                  <span className="mono" style={{ flex: 1, overflow: "hidden",
-                    textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
-                )}
-                <span style={{ color: "var(--text-3)", fontSize: 11.5 }}>{d.size}</span>
-                <button className="btn btn-ghost btn-sm btn-icon"
-                  onClick={() => removeDoc(d, i)}>
-                  <Icon name="trash" size={12} />
-                </button>
-              </div>
-            ))}
+            {(v.docs || []).filter(d => !d.categoryId).map((d, i) => {
+              const realIdx = (v.docs || []).indexOf(d);
+              return (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
+                  border: "1px solid var(--line)", borderRadius: 8, fontSize: 12.5,
+                }}>
+                  <Icon name="file" size={14} style={{ color: "var(--primary)" }} />
+                  {d.url ? (
+                    <a href={d.url} target="_blank" rel="noopener noreferrer"
+                      style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis",
+                        whiteSpace: "nowrap", color: "var(--primary)", fontSize: 12.5 }}>
+                      {d.name}
+                    </a>
+                  ) : (
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis",
+                      whiteSpace: "nowrap", fontSize: 12.5 }}>{d.name}</span>
+                  )}
+                  <span style={{ color: "var(--text-3)", fontSize: 11.5 }}>{d.size}</span>
+                  <button className="btn btn-ghost btn-sm btn-icon"
+                    onClick={() => removeDoc(d, realIdx)}>
+                    <Icon name="trash" size={12} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
-          {/* Label triggers file picker — more reliable than ref.click() */}
           <label htmlFor={inputId} style={{
             display: "flex", alignItems: "center", justifyContent: "center",
             gap: 6, width: "100%", padding: "7px 12px",
             border: "1px dashed var(--line)", borderRadius: "var(--radius)",
             cursor: uploading ? "not-allowed" : "pointer",
             fontSize: 13, fontWeight: 500, color: "var(--text-2)",
-            background: "var(--surface)", transition: "all .15s",
-            opacity: uploading ? 0.6 : 1,
+            background: "var(--surface)", opacity: uploading ? 0.6 : 1,
           }}>
             <Icon name="upload" size={14} />
-            {uploading ? "กำลังอัปโหลด..." : "เพิ่มไฟล์แนบ"}
-            <input
-              id={inputId}
-              type="file"
-              multiple
+            {uploading ? "กำลังอัปโหลด..." : "เพิ่มไฟล์แนบทั่วไป"}
+            <input id={inputId} type="file" multiple disabled={uploading}
               accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-              disabled={uploading}
-              style={{ display: "none" }}
-              onChange={handleFileUpload}
-            />
+              style={{ display: "none" }} onChange={handleFileUpload} />
           </label>
         </div>
 
