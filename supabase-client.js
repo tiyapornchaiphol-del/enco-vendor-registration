@@ -368,11 +368,25 @@ async function deactivateAdmin(id) {
 
 // ─── Storage Functions ───
 
+// Sanitize filename for Supabase Storage (ASCII-safe, no spaces)
+function sanitizeStorageKey(name) {
+  const ext = name.split('.').pop();
+  const base = name.slice(0, -(ext.length + 1));
+  // Replace non-ASCII + spaces + special chars with underscore
+  const safe = base
+    .replace(/[^\x00-\x7F]/g, '_')   // non-ASCII (Thai etc.) → _
+    .replace(/\s+/g, '_')             // spaces → _
+    .replace(/[^a-zA-Z0-9._-]/g, '_') // remaining specials → _
+    .replace(/_+/g, '_')              // collapse multiple __
+    .replace(/^_+|_+$/g, '');         // trim leading/trailing _
+  return (safe || 'file') + '.' + ext;
+}
+
 // Upload file to Supabase Storage
 async function uploadFileToStorage(file, folder = 'announcements') {
   try {
-    const ext = file.name.split('.').pop();
-    const fileName = `${folder}/${Date.now()}_${file.name}`;
+    const safeFilename = sanitizeStorageKey(file.name);
+    const fileName = `${folder}/${Date.now()}_${safeFilename}`;
 
     const { data, error } = await supabase.storage
       .from('documents')
