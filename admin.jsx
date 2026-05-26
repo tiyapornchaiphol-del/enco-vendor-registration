@@ -626,7 +626,7 @@ const SubmissionsTable = ({ rows, goto, full = false }) => (
 
 // ── Submission detail ───────────────────────────────────────────────────────
 function AdminDetail({ goto, id }) {
-  const { submissions, loading } = useData();
+  const { submissions, setSubmissions, loading } = useData();
   const allSubmissions = submissions && submissions.length > 0 ? submissions : SUBMISSIONS;
   const base = allSubmissions.find(x => x.id === id) || allSubmissions[0];
 
@@ -667,10 +667,24 @@ function AdminDetail({ goto, id }) {
 
   const s = { ...base, status };
 
-  const handleApprove = () => {
-    setStatus("approved");
+  const handleApprove = async () => {
     setConfirmApprove(false);
+    setStatus("approved");
+    // Update in Supabase
+    try {
+      if (window.updateSubmissionInDb) {
+        await window.updateSubmissionInDb(s.id, { status: "approved" });
+      }
+    } catch (e) {
+      console.error("Update status error:", e);
+    }
+    // Update local DataContext so the list reflects the change immediately
+    if (setSubmissions) {
+      setSubmissions(prev => prev.map(x => x.id === s.id ? { ...x, status: "approved" } : x));
+    }
     showToast(`อนุมัติ ${s.company} เรียบร้อยแล้ว`);
+    // Navigate back to submissions list after toast
+    setTimeout(() => goto("admin-submissions"), 1400);
   };
 
   const handleDocRequest = (requests) => {
