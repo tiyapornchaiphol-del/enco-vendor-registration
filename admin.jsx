@@ -626,16 +626,45 @@ const SubmissionsTable = ({ rows, goto, full = false }) => (
 
 // ── Submission detail ───────────────────────────────────────────────────────
 function AdminDetail({ goto, id }) {
-  const { submissions } = useData();
+  const { submissions, loading } = useData();
   const allSubmissions = submissions && submissions.length > 0 ? submissions : SUBMISSIONS;
   const base = allSubmissions.find(x => x.id === id) || allSubmissions[0];
-  const [status, setStatus] = React.useState(base.status);
+
+  // Hooks must run unconditionally — use safe fallback when base is undefined
+  const [status, setStatus] = React.useState(base?.status ?? "new");
   const [tab, setTab] = React.useState("info");
   const [requestingDocs, setRequestingDocs] = React.useState(false);
   const [docRequests, setDocRequests] = React.useState([]);
   const [showRequestModal, setShowRequestModal] = React.useState(false);
   const [confirmApprove, setConfirmApprove] = React.useState(false);
   const [toast, showToast] = useToast();
+
+  // Sync status once data loads (base may arrive after initial render)
+  React.useEffect(() => {
+    if (base?.status) setStatus(base.status);
+  }, [base?.status]);
+
+  // Guard: still loading, or submission not found
+  if (!base) {
+    return (
+      <div style={{ padding: "80px 24px", textAlign: "center", color: "var(--text-3)" }}>
+        {loading
+          ? <div style={{ fontSize: 13 }}>กำลังโหลดข้อมูล...</div>
+          : (
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 8 }}>
+                ไม่พบใบสมัคร
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => goto("admin-submissions")}>
+                ← กลับรายการใบสมัคร
+              </button>
+            </div>
+          )
+        }
+      </div>
+    );
+  }
+
   const s = { ...base, status };
 
   const handleApprove = () => {
