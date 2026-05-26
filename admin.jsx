@@ -574,8 +574,12 @@ function AdminSubmissions({ goto }) {
   );
 }
 
-const SubmissionsTable = ({ rows, goto, full = false }) => (
-  <table className="tbl">
+const SubmissionsTable = ({ rows, goto, full = false }) => {
+  const { groups } = useData();
+  const allGroups = groups && groups.length > 0 ? groups : VENDOR_CATEGORIES;
+  const catName = (catId) => allGroups.find(g => g.id === catId)?.th || catId || "-";
+
+  return (<table className="tbl">
     <thead>
       <tr>
         <th style={{ width: 110 }}>เลขที่</th>
@@ -612,7 +616,7 @@ const SubmissionsTable = ({ rows, goto, full = false }) => (
               ) : <span style={{ color: "var(--text-3)" }}>-</span>}
             </td>
           )}
-          {full && <td style={{ color: "var(--text-2)", fontSize: 13 }}>{r.category}</td>}
+          {full && <td style={{ color: "var(--text-2)", fontSize: 13 }}>{catName(r.category)}</td>}
           <td style={{ color: "var(--text-2)", fontSize: 13 }}>{fmtDateTime(r.submittedAt)}</td>
           {full && <td><Progress value={r.completeness} /></td>}
           <td><StatusChip status={r.status} /></td>
@@ -620,13 +624,13 @@ const SubmissionsTable = ({ rows, goto, full = false }) => (
         </tr>
       ))}
     </tbody>
-  </table>
-);
+  </table>);
+};
 
 
 // ── Submission detail ───────────────────────────────────────────────────────
 function AdminDetail({ goto, id }) {
-  const { submissions, setSubmissions, loading } = useData();
+  const { submissions, setSubmissions, loading, groups } = useData();
   const allSubmissions = submissions && submissions.length > 0 ? submissions : SUBMISSIONS;
   const base = allSubmissions.find(x => x.id === id) || allSubmissions[0];
 
@@ -666,6 +670,10 @@ function AdminDetail({ goto, id }) {
   }
 
   const s = { ...base, status };
+
+  // Resolve category ID → display name for the header
+  const allGroups = groups && groups.length > 0 ? groups : VENDOR_CATEGORIES;
+  const catDisplayName = allGroups.find(g => g.id === s.category)?.th || s.category || "-";
 
   const handleApprove = async () => {
     setConfirmApprove(false);
@@ -750,7 +758,7 @@ function AdminDetail({ goto, id }) {
               <div style={{ display: "flex", alignItems: "center", gap: 10,
                 marginTop: 2, flexWrap: "wrap" }}>
                 <span style={{ color: "var(--text-2)", fontSize: 13.5 }}>
-                  {s.category} · ยื่นเมื่อ {fmtDateTime(s.submittedAt)}
+                  {catDisplayName} · ยื่นเมื่อ {fmtDateTime(s.submittedAt)}
                 </span>
                 {s.annoId && (
                   <span className="mono" style={{
@@ -808,28 +816,43 @@ function AdminDetail({ goto, id }) {
   );
 }
 
-const DetailInfo = ({ s }) => (
+const DetailInfo = ({ s }) => {
+  const { groups } = useData();
+  // Resolve category ID → display name
+  const catName = React.useMemo(() => {
+    if (!s.category) return "-";
+    const all = groups && groups.length > 0 ? groups : VENDOR_CATEGORIES;
+    const found = all.find(g => g.id === s.category);
+    return found ? found.th : s.category;
+  }, [s.category, groups]);
+
+  const fullAddress = [s.address, s.subDistrict ? `แขวง${s.subDistrict}` : "", s.district ? `เขต${s.district}` : ""]
+    .filter(Boolean).join(" ") || "-";
+  const provincePostal = [s.province, s.postcode].filter(Boolean).join(" ") || "-";
+
+  return (
   <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) 1fr", gap: 16 }}>
     <div className="card" style={{ padding: 24 }}>
       <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600 }}>ข้อมูลบริษัท</h3>
       <InfoGrid rows={[
-        ["ชื่อ Vendor", s.company],
-        ["เลขผู้เสียภาษี",  s.taxId, true],
-        ["ประกาศที่สมัคร",  s.annoId || "-", true],
-        ["ประเภทกลุ่มงาน", s.category],
-        ["ทุนจดทะเบียน",   "20,000,000 บาท"],
-        ["ระยะเวลาทำธุรกิจ", "12 ปี"],
-        ["ที่อยู่",        "999/12 ถนนพระราม 9 แขวงห้วยขวาง เขตห้วยขวาง"],
-        ["จังหวัด / รหัสไปรษณีย์", "กรุงเทพมหานคร 10310"],
-        ["โทรศัพท์บริษัท",  "02-555-1234", true],
-        ["อีเมล",          "contact@safeguard-th.co.th", true],
+        ["ชื่อ Vendor",           s.company || "-"],
+        ["เลขผู้เสียภาษี",        s.taxId || "-", true],
+        ["ประกาศที่สมัคร",        s.annoId || "-", true],
+        ["ประเภทกลุ่มงาน",        catName],
+        ["ทุนจดทะเบียน",          s.capital ? s.capital + " บาท" : "-"],
+        ["ระยะเวลาทำธุรกิจ",      s.yearsInBusiness ? s.yearsInBusiness + " ปี" : "-"],
+        ["ที่อยู่",               fullAddress],
+        ["จังหวัด / รหัสไปรษณีย์", provincePostal],
+        ["โทรศัพท์บริษัท",        s.phone || "-", true],
+        ["โทรศัพท์มือถือ",        s.mobile || "-", true],
+        ["อีเมลบริษัท",           s.companyEmail || "-", true],
       ]} />
       <h3 style={{ margin: "28px 0 16px", fontSize: 15, fontWeight: 600 }}>ผู้ติดต่อ</h3>
       <InfoGrid rows={[
-        ["ชื่อ-นามสกุล", s.contact],
-        ["ตำแหน่ง",     "ผู้จัดการฝ่ายขาย"],
-        ["อีเมล",       s.email, true],
-        ["โทรศัพท์",    "081-234-5678", true],
+        ["ชื่อ-นามสกุล", s.contact || "-"],
+        ["ตำแหน่ง",     s.position || "-"],
+        ["อีเมล",       s.email || "-", true],
+        ["โทรศัพท์",    s.contactPhone || "-", true],
       ]} />
     </div>
 
@@ -868,7 +891,8 @@ const DetailInfo = ({ s }) => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 const InfoGrid = ({ rows }) => (
   <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", rowGap: 12, columnGap: 16,
