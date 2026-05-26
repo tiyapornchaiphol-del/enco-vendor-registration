@@ -282,8 +282,25 @@ function VendorLanding({ goto }) {
 const validatePhone = (phone) => {
   if (!phone) return null;
   const pattern = /^(0\d{1,2})-(\d{3,4})-(\d{4})$/;
-  if (!pattern.test(phone)) return "รูปแบบเบอร์โทรไม่ถูกต้อง (เช่น 081-234-5678)";
+  if (!pattern.test(phone)) return "รูปแบบไม่ถูกต้อง (เช่น 02-1234-5678 หรือ 081-234-5678)";
   return null;
+};
+
+// Auto-format Thai phone number with dashes as user types
+// Bangkok (02-XXXX-XXXX) vs Mobile/Provincial (0XX-XXX-XXXX)
+const autoFormatPhone = (value) => {
+  const digits = value.replace(/\D/g, "").slice(0, 10);
+  if (!digits) return "";
+  if (digits.startsWith("02")) {
+    // Bangkok: 02-XXXX-XXXX
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  // Mobile / Provincial: 0XX-XXX-XXXX
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
 };
 
 const validateEmail = (email) => {
@@ -342,13 +359,13 @@ function VendorForm({ goto, annoId }) {
   const validateField = (key, value) => {
     const v = String(value || "").trim();
 
-    // Company phone is optional — no required check, no format check
-    if (key === "phone") return null;
+    // Company phone: optional, but validate format if filled
+    if (key === "phone") return validatePhone(v); // validatePhone returns null when empty
 
     // Required check for all other fields
     if (!v) return "กรุณากรอกข้อมูลให้ครบถ้วน";
 
-    // Phone format validation (mobile only — required)
+    // Phone format validation
     if (key === "mobile" || key === "contactPhone") {
       return validatePhone(v);
     }
@@ -363,7 +380,11 @@ function VendorForm({ goto, annoId }) {
 
   // Update form and validate
   const update = (k) => (e) => {
-    const val = e.target?.value ?? e;
+    let val = e.target?.value ?? e;
+    // Auto-format phone fields with dashes as user types
+    if (k === "phone" || k === "mobile" || k === "contactPhone") {
+      val = autoFormatPhone(val);
+    }
     setForm({ ...form, [k]: val });
     const err = validateField(k, val);
     if (err) {
@@ -773,11 +794,15 @@ const StepCompany = ({ form, update, errors, updateCapital }) => (
       <Field label="รหัสไปรษณีย์" required error={errors.postalCode}>
         <input className="input mono" value={form.postalCode} onChange={update("postalCode")} style={{ borderColor: errors.postalCode ? "var(--danger)" : undefined }} />
       </Field>
-      <Field label="โทรศัพท์ (บริษัท)" hint="ไม่บังคับ" error={errors.phone}>
-        <input className="input mono" value={form.phone} onChange={update("phone")} placeholder="02-555-1234" style={{ borderColor: errors.phone ? "var(--danger)" : undefined }} />
+      <Field label="โทรศัพท์ (บริษัท)" hint="ไม่บังคับ — ขีดจะเติมอัตโนมัติ" error={errors.phone}>
+        <input className="input mono" value={form.phone} onChange={update("phone")}
+          placeholder="02-1234-5678" maxLength={13}
+          style={{ borderColor: errors.phone ? "var(--danger)" : undefined }} />
       </Field>
-      <Field label="โทรศัพท์มือถือ" required hint="รูปแบบ: 081-234-5678" error={errors.mobile}>
-        <input className="input mono" value={form.mobile} onChange={update("mobile")} placeholder="081-234-5678" style={{ borderColor: errors.mobile ? "var(--danger)" : undefined }} />
+      <Field label="โทรศัพท์มือถือ" required hint="ขีดจะเติมอัตโนมัติ" error={errors.mobile}>
+        <input className="input mono" value={form.mobile} onChange={update("mobile")}
+          placeholder="081-234-5678" maxLength={12}
+          style={{ borderColor: errors.mobile ? "var(--danger)" : undefined }} />
       </Field>
       <Field label="อีเมล" required span={2} error={errors.email}>
         <input className="input mono" value={form.email} onChange={update("email")} placeholder="contact@example.com" style={{ borderColor: errors.email ? "var(--danger)" : undefined }} />
@@ -807,8 +832,10 @@ const StepContact = ({ form, update, errors }) => (
       <Field label="อีเมล" required error={errors.contactEmail}>
         <input className="input mono" value={form.contactEmail} onChange={update("contactEmail")} placeholder="email@example.com" style={{ borderColor: errors.contactEmail ? "var(--danger)" : undefined }} />
       </Field>
-      <Field label="โทรศัพท์มือถือ" required hint="รูปแบบ: 081-234-5678" error={errors.contactPhone}>
-        <input className="input mono" value={form.contactPhone} onChange={update("contactPhone")} placeholder="081-234-5678" style={{ borderColor: errors.contactPhone ? "var(--danger)" : undefined }} />
+      <Field label="โทรศัพท์มือถือ" required hint="ขีดจะเติมอัตโนมัติ" error={errors.contactPhone}>
+        <input className="input mono" value={form.contactPhone} onChange={update("contactPhone")}
+          placeholder="081-234-5678" maxLength={12}
+          style={{ borderColor: errors.contactPhone ? "var(--danger)" : undefined }} />
       </Field>
     </div>
     <div style={{
