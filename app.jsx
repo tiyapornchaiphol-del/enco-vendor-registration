@@ -170,6 +170,7 @@ function App() {
     { id: "admin-submissions",   label: "ใบสมัครคู่ค้า",          icon: "inbox" },
     { id: "admin-announcements", label: "ประกาศรับสมัคร",        icon: "megaphone" },
     { id: "admin-groups",        label: "กลุ่มงาน",                 icon: "sparkle" },
+    { id: "admin-vendors",       label: "ทะเบียนผู้ค้า",            icon: "building" },
     { id: "admin-users",         label: "ผู้ใช้งานระบบ",          icon: "users" },
   ];
   const nav = isAdmin ? adminNav : vendorNav;
@@ -211,7 +212,8 @@ function App() {
           )}
           {nav.map(n => {
             const isActive = page === n.id ||
-              (n.id === "admin-submissions" && page === "admin-detail");
+              (n.id === "admin-submissions" && page === "admin-detail") ||
+              (n.id === "avl-registry"      && page === "avl-registry");
             return (
               <button key={n.id} onClick={() => { goto(n.id); setSidebarOpen(false); }}
                 style={{
@@ -285,6 +287,7 @@ function App() {
 
           {/* Pages */}
           {page === "landing"             && <VendorLanding goto={goto} />}
+          {page === "avl-registry"        && <VendorRegistry goto={goto} />}
           {page === "form"                && <VendorForm key={detailId || "default"} goto={goto} annoId={detailId} />}
           {page === "track"               && <VendorTrack goto={goto} />}
           {page === "admin-dashboard"     && <AdminDashboard goto={goto} />}
@@ -292,6 +295,7 @@ function App() {
           {page === "admin-detail"        && <AdminDetail goto={goto} id={detailId} />}
           {page === "admin-announcements" && <AdminAnnouncements goto={goto} />}
           {page === "admin-groups"        && <AdminGroups />}
+          {page === "admin-vendors"       && <AdminVendorRegistry goto={goto} />}
           {page === "admin-users"         && <AdminUsersPlaceholder />}
         </main>
       </div>
@@ -342,6 +346,7 @@ const Breadcrumb = ({ page, detailId, role, goto }) => {
     "admin-detail":        ["Admin", "ใบสมัครคู่ค้า", detailId || ""],
     "admin-announcements": ["Admin", "ประกาศรับสมัคร"],
     "admin-groups":        ["Admin", "กลุ่มงาน"],
+    "admin-vendors":       ["Admin", "ทะเบียนผู้ค้า"],
     "admin-users":         ["Admin", "ผู้ใช้งานระบบ"],
   };
   const parts = titles[page] || [""];
@@ -361,57 +366,176 @@ const Breadcrumb = ({ page, detailId, role, goto }) => {
   );
 };
 
-const AdminVendorsPlaceholder = () => (
-  <div className="fade-in">
-    <SectionHeader
-      eyebrow="Admin · Approved Vendors"
-      title="ทะเบียนคู่ค้า"
-      desc="รายชื่อคู่ค้าที่ขึ้นทะเบียนเรียบร้อยแล้ว" />
-    <div className="card" style={{ overflow: "hidden" }}>
-      <table className="tbl">
-        <thead>
-          <tr>
-            <th>รหัส</th><th>บริษัท</th><th>ประเภท</th>
-            <th>ขึ้นทะเบียน</th><th>เกรด</th><th>ใช้งานล่าสุด</th><th>สถานะ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {SUBMISSIONS.filter(s => s.status === "approved").map((v, i) => (
-            <tr key={v.id}>
-              <td className="mono" style={{ fontSize: 12.5 }}>{`V-${String(101 + i).padStart(4, "0")}`}</td>
-              <td>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <Avatar name={v.company} size={32} />
-                  <div>
-                    <div style={{ fontWeight: 500, fontSize: 13.5 }}>{v.company}</div>
-                    <div className="mono" style={{ fontSize: 11.5, color: "var(--text-3)" }}>{v.taxId}</div>
-                  </div>
-                </div>
-              </td>
-              <td style={{ fontSize: 13, color: "var(--text-2)" }}>{v.category}</td>
-              <td style={{ fontSize: 13, color: "var(--text-2)" }}>{v.submittedAt}</td>
-              <td>
-                <span className="pill" style={{ background: ["var(--success-soft)","var(--primary-soft)","var(--warn-soft)"][i % 3],
-                  color: ["oklch(38% 0.11 155)", "var(--primary-ink)", "oklch(45% 0.12 70)"][i % 3] }}>
-                  {["A", "A", "B"][i % 3]}
-                </span>
-              </td>
-              <td style={{ fontSize: 13, color: "var(--text-2)" }}>
-                {["3 วัน", "1 สัปดาห์", "2 สัปดาห์"][i % 3]}ที่แล้ว
-              </td>
-              <td>
-                <span className="pill" style={{ background: "var(--success-soft)",
-                  color: "oklch(38% 0.11 155)" }}>
-                  <span className="pill-dot" /> Active
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+// ── ทะเบียนรายชื่อผู้ค้า (Vendor-facing) ────────────────────────────────────
+function VendorRegistry({ goto }) {
+  const { submissions, groups } = useData();
+  const groupById = Object.fromEntries((groups || []).map(g => [g.id, g]));
+  const approved = (submissions || []).filter(s => s.status === "approved");
+
+  const fmtDate = (str) => {
+    if (!str) return "—";
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return str;
+    return d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+  };
+
+  return (
+    <div className="fade-in">
+      <SectionHeader
+        eyebrow="Vendor Portal · AVL"
+        title="ทะเบียนรายชื่อผู้ค้า"
+        desc="รายชื่อผู้ค้าที่ผ่านการประเมินและขึ้นทะเบียนกับ EnCo (Approved Vendor List)"
+        action={
+          <button className="btn btn-ghost btn-sm" onClick={() => goto("landing")}>
+            <Icon name="arrowLeft" size={14} /> กลับหน้าหลัก
+          </button>
+        }
+      />
+      <div className="card" style={{ overflow: "hidden" }}>
+        {approved.length === 0 ? (
+          <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--text-3)" }}>
+            <Icon name="building" size={32} style={{ opacity: .3, marginBottom: 12 }} />
+            <div style={{ fontSize: 14 }}>ยังไม่มีรายชื่อผู้ค้าที่ขึ้นทะเบียน</div>
+          </div>
+        ) : (
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th style={{ width: 56 }}>ลำดับ</th>
+                <th>บริษัท</th>
+                <th style={{ width: 200 }}>กลุ่มงาน</th>
+                <th style={{ width: 160 }}>วันที่ขึ้นทะเบียน</th>
+                <th style={{ width: 100 }}>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {approved.map((v, i) => {
+                const g = groupById[v.category];
+                return (
+                  <tr key={v.id}>
+                    <td style={{ color: "var(--text-3)", fontSize: 13, textAlign: "center" }}>{i + 1}</td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <Avatar name={v.company} size={30} />
+                        <div>
+                          <div style={{ fontWeight: 500, fontSize: 13.5 }}>{v.company}</div>
+                          <div className="mono" style={{ fontSize: 11.5, color: "var(--text-3)" }}>{v.taxId}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      {g ? (
+                        <span className="pill" style={{ background: "var(--primary-soft)",
+                          color: "var(--primary-ink)", fontSize: 12 }}>
+                          {g.icon} {g.th}
+                        </span>
+                      ) : (
+                        <span style={{ color: "var(--text-2)", fontSize: 13 }}>{v.category}</span>
+                      )}
+                    </td>
+                    <td style={{ color: "var(--text-2)", fontSize: 13 }}>{fmtDate(v.submittedAt)}</td>
+                    <td>
+                      <span className="pill" style={{ background: "var(--success-soft)",
+                        color: "oklch(38% 0.11 155)", fontSize: 12 }}>
+                        <span className="pill-dot" /> อยู่ในทะเบียน
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+}
+
+// ── ทะเบียนรายชื่อผู้ค้า (Admin-facing) ─────────────────────────────────────
+function AdminVendorRegistry({ goto }) {
+  const { submissions, groups } = useData();
+  const groupById = Object.fromEntries((groups || []).map(g => [g.id, g]));
+  const approved = (submissions || []).filter(s => s.status === "approved");
+
+  const fmtDate = (str) => {
+    if (!str) return "—";
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return str;
+    return d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+  };
+
+  return (
+    <div className="fade-in">
+      <SectionHeader
+        eyebrow="Admin · Approved Vendor List"
+        title="ทะเบียนรายชื่อผู้ค้า"
+        desc={`ผู้ค้าที่ผ่านการขึ้นทะเบียนแล้ว ${approved.length} ราย`}
+      />
+      <div className="card" style={{ overflow: "hidden" }}>
+        {approved.length === 0 ? (
+          <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--text-3)" }}>
+            <div style={{ fontSize: 14 }}>ยังไม่มีรายชื่อผู้ค้าที่ขึ้นทะเบียน</div>
+            <div style={{ fontSize: 12.5, marginTop: 6 }}>
+              อนุมัติใบสมัครในหน้า <b>ใบสมัครคู่ค้า</b> เพื่อเพิ่มในทะเบียน
+            </div>
+          </div>
+        ) : (
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th style={{ width: 56 }}>ลำดับ</th>
+                <th>บริษัท</th>
+                <th style={{ width: 130 }}>เลขผู้เสียภาษี</th>
+                <th style={{ width: 180 }}>กลุ่มงาน</th>
+                <th style={{ width: 130 }}>ผู้ติดต่อ</th>
+                <th style={{ width: 140 }}>วันที่อนุมัติ</th>
+                <th style={{ width: 110 }}>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {approved.map((v, i) => {
+                const g = groupById[v.category];
+                return (
+                  <tr key={v.id}>
+                    <td style={{ color: "var(--text-3)", fontSize: 13, textAlign: "center" }}>{i + 1}</td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <Avatar name={v.company} size={30} />
+                        <div>
+                          <div style={{ fontWeight: 500, fontSize: 13.5 }}>{v.company}</div>
+                          <div style={{ fontSize: 12, color: "var(--text-3)" }}>{v.email || v.companyEmail}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="mono" style={{ fontSize: 12.5, color: "var(--text-2)" }}>{v.taxId}</td>
+                    <td>
+                      {g ? (
+                        <span className="pill" style={{ background: "var(--primary-soft)",
+                          color: "var(--primary-ink)", fontSize: 12 }}>
+                          {g.icon} {g.th}
+                        </span>
+                      ) : (
+                        <span style={{ color: "var(--text-2)", fontSize: 13 }}>{v.category}</span>
+                      )}
+                    </td>
+                    <td style={{ fontSize: 13, color: "var(--text-2)" }}>{v.contact}</td>
+                    <td style={{ fontSize: 13, color: "var(--text-2)" }}>{fmtDate(v.submittedAt)}</td>
+                    <td>
+                      <span className="pill" style={{ background: "var(--success-soft)",
+                        color: "oklch(38% 0.11 155)", fontSize: 12 }}>
+                        <span className="pill-dot" /> อยู่ในทะเบียน
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const ROLE_OPTIONS = [
   { value: "Super Admin",        label: "Super Admin",        perms: ["approve","request-docs","manage-announcements","manage-groups","manage-users","manage-admins"] },
