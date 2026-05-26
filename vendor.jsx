@@ -1,12 +1,20 @@
 // Vendor-side pages: Landing (announcements), Registration form (multi-step), Status tracker
 
-function simDownload(filename) {
+function simDownload(filename, url) {
+  if (url) { window.open(url, "_blank"); return; }
   const a = document.createElement("a");
   const blob = new Blob([`[ไฟล์จำลอง: ${filename}]`], { type: "application/octet-stream" });
   a.href = URL.createObjectURL(blob);
   a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+function fmtDate(str) {
+  if (!str) return "—";
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return str;
+  return d.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
 }
 
 // ── Landing / announcement page ─────────────────────────────────────────────
@@ -40,10 +48,13 @@ function VendorLanding({ goto }) {
             fontWeight: 600, letterSpacing: "-.01em", marginBottom: 12 }}>
             ระบบขึ้นทะเบียนผู้ค้าของ EnCo
           </h1>
-          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.65, opacity: .85,
-            maxWidth: 600, marginBottom: 24 }}>
-            ลงทะเบียนเป็นผู้ค้าออนไลน์ ดาวน์โหลดประกาศและรายชื่อทะเบียนคู่ค้า
-            และตรวจสอบสถานะใบสมัครได้ในที่เดียว
+          <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.8, opacity: .92,
+            maxWidth: 700, marginBottom: 24 }}>
+            บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด (EnCo) ขอเชิญชวนผู้ค้าที่สนใจสมัครขึ้นทะเบียนของ EnCo
+            เพื่อประโยชน์ในการจัดหาเชิงพาณิชย์ด้วยวิธีประมูล โดยมีวัตถุประสงค์เพื่อให้มั่นใจว่า
+            ภายใต้กระบวนการกำหนดกลุ่มงาน และขั้นตอน หรือวิธีการในการคัดเลือกผู้ค้าเพื่อขึ้นทะเบียนผู้ค้ากับ EnCo นั้น
+            จะได้ผู้ค้าที่มีประสิทธิภาพ สามารถส่งมอบสินค้า หรือบริการได้ตรงกับความต้องการขององค์กร
+            และส่งเสริมความเป็นพันธมิตร (Partnership) กับ EnCo อย่างยั่งยืน
           </p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button className="btn" style={{ background: "#fff", color: "var(--primary-ink)" }}
@@ -74,50 +85,91 @@ function VendorLanding({ goto }) {
             <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto",
               gap: 24, alignItems: "start" }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
+                {/* Status + ID */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14,
                   flexWrap: "wrap" }}>
                   <StatusChip status={a.status} map={ANNC_STATUS_LABEL} />
                   <span style={{ fontSize: 12, color: "var(--text-3)",
                     fontFamily: "var(--font-mono)" }}>{a.id}</span>
-                  <span style={{ color: "var(--text-3)", fontSize: 12 }}>·</span>
-                  <span style={{ fontSize: 12.5, color: "var(--text-2)" }}>
-                    {a.openedAt} → <b>{a.closedAt}</b>
-                  </span>
                 </div>
-                <h3 style={{ margin: "0 0 8px", fontSize: 19, fontWeight: 600,
-                  letterSpacing: "-.005em", lineHeight: 1.3 }}>{a.title}</h3>
-                <p style={{ margin: 0, color: "var(--text-2)", fontSize: 14, maxWidth: 760,
-                  lineHeight: 1.6 }}>
-                  {a.summary}
-                </p>
 
-                {/* Category chips */}
-                <div style={{ marginTop: 16 }}>
+                {/* Title */}
+                <h3 style={{ margin: "0 0 14px", fontSize: 20, fontWeight: 700,
+                  letterSpacing: "-.005em", lineHeight: 1.3 }}>{a.title}</h3>
+
+                {/* Big date bar */}
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: 0,
+                  background: "var(--primary-soft)",
+                  border: "1px solid var(--primary-border)",
+                  borderRadius: 12, overflow: "hidden", marginBottom: 16,
+                }}>
+                  <div style={{ padding: "12px 22px", textAlign: "center" }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--primary)",
+                      letterSpacing: ".08em", textTransform: "uppercase",
+                      fontFamily: "var(--font-en)", marginBottom: 4 }}>ตั้งแต่วันที่</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: "var(--primary-ink)",
+                      lineHeight: 1 }}>{fmtDate(a.openedAt)}</div>
+                  </div>
+                  <div style={{ width: 1, alignSelf: "stretch",
+                    background: "var(--primary-border)" }} />
+                  <div style={{ padding: "12px 22px", textAlign: "center" }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--primary)",
+                      letterSpacing: ".08em", textTransform: "uppercase",
+                      fontFamily: "var(--font-en)", marginBottom: 4 }}>ถึงวันที่</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: "var(--primary-ink)",
+                      lineHeight: 1 }}>{fmtDate(a.closedAt)}</div>
+                  </div>
+                </div>
+
+                {/* Summary */}
+                {a.summary ? (
+                  <p style={{ margin: "0 0 18px", color: "var(--text-2)", fontSize: 14,
+                    maxWidth: 760, lineHeight: 1.7 }}>{a.summary}</p>
+                ) : null}
+
+                {/* Pre-Q per category */}
+                <div style={{ marginBottom: 18 }}>
                   <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-3)",
                     letterSpacing: ".06em", textTransform: "uppercase",
-                    fontFamily: "var(--font-en)", marginBottom: 8 }}>
-                    กลุ่มงานที่เปิดรับสมัคร ({(a.categories || []).length} กลุ่ม)
+                    fontFamily: "var(--font-en)", marginBottom: 10 }}>
+                    กลุ่มงานที่เปิดรับสมัคร — ดาวน์โหลดฟอร์ม Pre-Qualification
                   </div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {(a.categories || []).map(cid => {
                       const g = groupById && groupById[cid];
                       if (!g) return null;
+                      // find Pre-Q doc from announcement docs matching group
+                      const preqDoc = (a.docs || []).find(d =>
+                        d.name && d.name.toLowerCase().includes(g.id.toLowerCase())
+                      );
                       return (
-                        <span key={cid} className="pill" style={{
-                          background: "var(--primary-soft)", color: "var(--primary-ink)",
-                          gap: 6, padding: "4px 11px",
+                        <div key={cid} style={{
+                          display: "flex", alignItems: "center", gap: 12,
+                          padding: "10px 14px",
+                          border: "1px solid var(--line)",
+                          background: "var(--surface)",
+                          borderRadius: 10,
+                          flexWrap: "wrap",
                         }}>
-                          <span>{g.icon}</span>
-                          <span style={{ fontWeight: 500 }}>{g.th}</span>
-                        </span>
+                          <span style={{ fontSize: 18 }}>{g.icon}</span>
+                          <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{g.th}</span>
+                          <button
+                            className="btn btn-soft btn-sm"
+                            onClick={() => simDownload(`Pre-Q_${g.th}.pdf`, preqDoc?.url)}
+                          >
+                            <Icon name="download" size={13} />
+                            ดาวน์โหลด Pre-Q
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Documents */}
-                {a.docs.length ? (
-                  <div style={{ marginTop: 18 }}>
+                {/* Other documents */}
+                {(a.docs || []).length ? (
+                  <div>
                     <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-3)",
                       letterSpacing: ".06em", textTransform: "uppercase",
                       fontFamily: "var(--font-en)", marginBottom: 8 }}>
@@ -127,12 +179,12 @@ function VendorLanding({ goto }) {
                       {a.docs.map(d => (
                         <button key={d.name} className="btn btn-ghost btn-sm"
                           style={{ paddingLeft: 10, paddingRight: 12 }}
-                          onClick={() => simDownload(d.name)}>
+                          onClick={() => simDownload(d.name, d.url)}>
                           <Icon name="download" size={13} />
                           <span style={{ maxWidth: 240, overflow: "hidden",
                             textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
-                          <span style={{ color: "var(--text-3)", fontSize: 11,
-                            fontFamily: "var(--font-mono)", marginLeft: 4 }}>{d.size}</span>
+                          {d.size ? <span style={{ color: "var(--text-3)", fontSize: 11,
+                            fontFamily: "var(--font-mono)", marginLeft: 4 }}>{d.size}</span> : null}
                         </button>
                       ))}
                     </div>
@@ -171,7 +223,7 @@ function VendorLanding({ goto }) {
                     <td className="mono" style={{ fontSize: 12.5, color: "var(--text-2)" }}>{a.id}</td>
                     <td style={{ fontWeight: 500 }}>{a.title}</td>
                     <td style={{ color: "var(--text-2)" }}>{(a.categories || []).length} กลุ่ม</td>
-                    <td style={{ color: "var(--text-2)" }}>{a.closedAt}</td>
+                    <td style={{ color: "var(--text-2)" }}>{fmtDate(a.closedAt)}</td>
                     <td><StatusChip status="closed" map={ANNC_STATUS_LABEL} /></td>
                   </tr>
                 ))}
