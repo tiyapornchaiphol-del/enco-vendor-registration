@@ -7,32 +7,18 @@ function AdminLoginForm({ onLogin, onCancel }) {
   const [loading, setLoading] = React.useState(false);
 
   const login = async () => {
+    if (!email.trim() || !password) { setErr("กรุณากรอกอีเมลและรหัสผ่าน"); return; }
     setLoading(true);
     setErr("");
-
     try {
-      // Query admin from Supabase
       const admin = await window.getAdminByEmail(email.trim(), password);
-
-      if (!admin) {
-        setErr("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
-        setLoading(false);
-        return;
-      }
-
-      // Login success - convert database format to app format
-      onLogin({
-        id: admin.id,
-        email: admin.email,
-        name: admin.name,
-        role: admin.role,
-        permissions: admin.permissions || []
-      });
-    } catch (error) {
-      console.error('Login error:', error);
+      if (!admin) { setErr("อีเมลหรือรหัสผ่านไม่ถูกต้อง"); setLoading(false); return; }
+      onLogin({ id: admin.id, email: admin.email, name: admin.name,
+        role: admin.role, permissions: admin.permissions || [] });
+    } catch (e) {
+      console.error("Login error:", e);
       setErr("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
     }
-
     setLoading(false);
   };
 
@@ -44,16 +30,16 @@ function AdminLoginForm({ onLogin, onCancel }) {
             display: "block", marginBottom: 6 }}>อีเมล</label>
           <input className="input" type="email" value={email}
             onChange={e => setEmail(e.target.value)} placeholder="your@enco.co.th"
-            disabled={loading}
-            onKeyDown={e => e.key === "Enter" && !loading && login()} style={{ width: "100%" }} />
+            disabled={loading} onKeyDown={e => e.key === "Enter" && !loading && login()}
+            style={{ width: "100%" }} />
         </div>
         <div>
           <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)",
             display: "block", marginBottom: 6 }}>รหัสผ่าน</label>
           <input className="input" type="password" value={password}
             onChange={e => setPassword(e.target.value)} placeholder="••••••••"
-            disabled={loading}
-            onKeyDown={e => e.key === "Enter" && !loading && login()} style={{ width: "100%" }} />
+            disabled={loading} onKeyDown={e => e.key === "Enter" && !loading && login()}
+            style={{ width: "100%" }} />
         </div>
         {err && (
           <div style={{ padding: "10px 14px", background: "var(--danger-soft)",
@@ -65,10 +51,6 @@ function AdminLoginForm({ onLogin, onCancel }) {
         <button className="btn btn-primary" onClick={login} disabled={loading} style={{ marginTop: 4 }}>
           {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
         </button>
-      </div>
-      <div style={{ marginTop: 16, padding: "10px 14px", background: "var(--surface-2)",
-        borderRadius: 8, fontSize: 12, color: "var(--text-3)" }}>
-        <b style={{ color: "var(--text-2)" }}>ข้อมูลเข้าระบบ:</b> admin@enco.co.th / admin123
       </div>
       <div style={{ textAlign: "center", marginTop: 16 }}>
         <button onClick={onCancel}

@@ -262,13 +262,8 @@ function VendorForm({ goto, annoId }) {
   });
   const [errors, setErrors] = React.useState({});
   const [files, setFiles] = React.useState({
-    general: {
-      cert:    { name: "หนังสือรับรอง_บริษัท.pdf", size: "245 KB" },
-      pp20:    { name: "ภพ20_safeguard.pdf",         size: "180 KB" },
-      fin:     { name: "งบการเงิน_3ปี.pdf",        size: "1.4 MB" },
-      id:      null, iso: null, profile: null,
-    },
-    groups: {}, // { security: { preq: null, works: [null, null, null] }, ... }
+    general: { cert: null, pp20: null, fin: null, id: null, iso: null, profile: null },
+    groups: {}, // { [groupId]: { preq: File|null, works: [File|null, ...] } }
   });
   const [submitted, setSubmitted] = React.useState(false);
   const [consent, setConsent] = React.useState(false);
@@ -385,24 +380,61 @@ function VendorForm({ goto, annoId }) {
   const [submissionId, setSubmissionId] = React.useState(null);
   const [submitting, setSubmitting] = React.useState(false);
 
+  const [submitStep, setSubmitStep] = React.useState("");
+
   const submit = async () => {
     if (!currentValid.ok) { setShowErr(true); return; }
 
     try {
       setSubmitting(true);
 
-      // Generate submission ID (AVL-YY-XXXX format)
+      // ── 1. สร้างเลขที่ใบสมัคร ──
       const year = new Date().getFullYear().toString().slice(-2);
-      const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      const id = `AVL-${year}-${randomNum}`;
+      const id = `AVL-${year}-${Math.floor(Math.random() * 9000 + 1000)}`;
+      const catNames = (groupList || [])
+        .filter(g => form.categories.includes(g.id)).map(g => g.th).join(", ");
+      const submittedAt = new Date().toLocaleString("th-TH");
 
-      // Prepare submission data
+      // ── 2. รวบรวมไฟล์ทั้งหมด ──
+      const allFileEntries = []; // { label, file }
+      REQUIRED_DOCS.forEach(d => {
+        if (files.general[d.id] instanceof File)
+          allFileEntries.push({ label: d.th, file: files.general[d.id] });
+      });
+      (groupList || []).filter(g => form.categories.includes(g.id)).forEach(g => {
+        const gf = files.groups[g.id] || {};
+        if (gf.preq instanceof File)
+          allFileEntries.push({ label: `Pre-Q: ${g.th}`, file: gf.preq });
+        (gf.works || []).forEach((f, i) => {
+          if (f instanceof File)
+            allFileEntries.push({ label: `ผลงาน ${g.th} #${i + 1}`, file: f });
+        });
+      });
+
+      // ── 3. อัปโหลดไฟล์ → Supabase Storage ──
+      const fileLinks = []; // { label, url, name }
+      if (window.uploadFileToStorage && allFileEntries.length > 0) {
+        for (let i = 0; i < allFileEntries.length; i++) {
+          const { label, file } = allFileEntries[i];
+          setSubmitStep(`อัปโหลดเอกสาร ${i + 1}/${allFileEntries.length}...`);
+          try {
+            const result = await window.uploadFileToStorage(file, `submissions/${id}`);
+            fileLinks.push({ label, url: result.url, name: result.name });
+          } catch (uploadErr) {
+            console.error('Upload error:', label, uploadErr);
+            fileLinks.push({ label, url: null, name: file.name });
+          }
+        }
+      }
+
+      // ── 4. บันทึกข้อมูลใน Supabase Database (text เท่านั้น) ──
+      setSubmitStep("กำลังบันทึกข้อมูล...");
       const submissionData = {
         id,
-        annoId: targetAnnc?.id || "AVL-1/2569",
+        annoId: targetAnnc?.id || null,
         company: form.vendorName,
         taxId: form.taxId,
-        category: groups.find(g => form.categories.includes(g.id))?.th || form.categories[0],
+        category: form.categories[0] || '',
         address: form.address,
         subDistrict: form.subDistrict,
         district: form.district,
@@ -412,26 +444,53 @@ function VendorForm({ goto, annoId }) {
         mobile: form.mobile,
         companyEmail: form.email,
         capital: form.capital,
-        yearsInBusiness: parseInt(form.years, 10),
+        yearsInBusiness: form.years,
         contact: form.contactName,
         position: form.contactPosition,
         email: form.contactEmail,
         contactPhone: form.contactPhone,
-        submittedAt: new Date().toLocaleString("th-TH"),
+        submittedAt: new Date().toISOString(),
       };
-
-      // Save to Supabase
       if (window.createSubmissionInDb) {
         await window.createSubmissionInDb(submissionData);
+      }
+
+      // ── 5. แจ้ง Admin ผ่าน Power Automate ──
+      if (window.notifyAdminViaWebhook) {
+        setSubmitStep("กำลังแจ้ง Admin...");
+        const fileLinksText = fileLinks.length > 0
+          ? fileLinks.map(f => `• ${f.label}: ${f.url || '(upload ไม่สำเร็จ)'}`).join('\n')
+          : '(ไม่มีไฟล์)';
+        await window.notifyAdminViaWebhook({
+          submission_id:    id,
+          anno_id:          targetAnnc?.id || '-',
+          categories:       catNames,
+          submitted_at:     submittedAt,
+          company_name:     form.vendorName,
+          tax_id:           form.taxId,
+          capital:          form.capital,
+          years:            form.years,
+          address:          `${form.address} แขวง${form.subDistrict} เขต${form.district} ${form.province} ${form.postalCode}`,
+          phone:            form.phone,
+          mobile:           form.mobile,
+          company_email:    form.email,
+          contact_name:     form.contactName,
+          contact_position: form.contactPosition,
+          contact_email:    form.contactEmail,
+          contact_phone:    form.contactPhone,
+          doc_count:        String(fileLinks.length),
+          file_links:       fileLinksText,
+        });
       }
 
       setSubmissionId(id);
       setSubmitted(true);
     } catch (error) {
-      console.error('Error submitting form:', error);
-      alert('เกิดข้อผิดพลาดในการส่งใบสมัคร: ' + error.message);
+      console.error('Submit error:', error);
+      alert('เกิดข้อผิดพลาด: ' + error.message);
     } finally {
       setSubmitting(false);
+      setSubmitStep("");
     }
   };
 
@@ -510,9 +569,11 @@ function VendorForm({ goto, annoId }) {
             </button>
           ) : (
             <button className="btn btn-primary" onClick={submit}
-              disabled={!currentValid.ok}
+              disabled={!currentValid.ok || submitting}
               title={currentValid.ok ? "" : currentValid.msg}>
-              ส่งใบสมัคร <Icon name="check" size={14} />
+              {submitting
+                ? (submitStep || "กำลังส่ง...")
+                : <><span>ส่งใบสมัคร</span> <Icon name="check" size={14} /></>}
             </button>
           )}
         </div>

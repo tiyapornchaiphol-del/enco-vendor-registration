@@ -144,13 +144,21 @@ const FileSlot = ({ doc, file, onPick, onRemove }) => {
         </div>
         <div style={{ fontSize: 12, color: "var(--text-3)",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {has ? `${file.name} · ${file.size}` : "PDF, JPG, PNG — ขนาดไม่เกิน 10 MB"}
+          {has ? `${file.name} · ${file._displaySize || file.size || ""}` : "PDF, JPG, PNG, DOC — ขนาดไม่เกิน 10 MB"}
         </div>
       </div>
       <input type="file" ref={inputRef} style={{ display: "none" }}
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) onPick({ name: f.name, size: `${(f.size / 1024).toFixed(0)} KB` });
+          if (f) {
+            // ส่ง File object จริง พร้อม metadata สำหรับแสดงผล
+            f._displaySize = f.size < 1024 * 1024
+              ? `${(f.size / 1024).toFixed(0)} KB`
+              : `${(f.size / (1024 * 1024)).toFixed(1)} MB`;
+            onPick(f);
+          }
+          e.target.value = ""; // reset เพื่อเลือกไฟล์เดิมซ้ำได้
         }} />
       {has ? (
         <button className="btn btn-ghost btn-sm" onClick={onRemove}>

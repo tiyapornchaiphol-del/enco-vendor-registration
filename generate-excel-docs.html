@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Generate Excel Docs — EnCo</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; margin: 0; gap: 20px; }
+  .card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,.1);
+    max-width: 520px; width: 90%; text-align: center; }
+  h1 { font-size: 20px; margin: 0 0 8px; color: #1a1d23; }
+  p { color: #6b7280; font-size: 14px; margin: 0 0 24px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px;
+    border-radius: 8px; border: none; cursor: pointer; font-size: 15px; font-weight: 600;
+    transition: all .15s; margin: 6px; }
+  .btn-blue { background: #2563eb; color: white; }
+  .btn-blue:hover { background: #1d4ed8; }
+  .btn-green { background: #16a34a; color: white; }
+  .btn-green:hover { background: #15803d; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .status { margin-top: 16px; font-size: 13px; color: #6b7280; min-height: 20px; }
+  .success { color: #16a34a; font-weight: 600; }
+  .error { color: #dc2626; font-weight: 600; }
+  .loading { color: #6b7280; }
+  #loadingMsg { color: #f59e0b; font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📊 สร้างไฟล์ Excel</h1>
+  <p>คลิกปุ่มด้านล่างเพื่อ Download ไฟล์ Excel</p>
+  <div>
+    <button class="btn btn-blue" id="btnDic" onclick="generateDataDic()">
+      📖 Download Data Dictionary
+    </button>
+    <br>
+    <button class="btn btn-green" id="btnTest" onclick="generateTestData()">
+      🧪 Download Test Data
+    </button>
+  </div>
+  <div class="status" id="status"></div>
+  <div id="loadingMsg">⏳ กำลังโหลด XLSX library...</div>
+</div>
+
+<script>
+// โหลด XLSX จาก unpkg (ฟรี ไม่มีลิขสิทธิ์)
+(function loadXLSX() {
+  var script = document.createElement('script');
+  script.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
+  script.onload = function() {
+    document.getElementById('loadingMsg').textContent = '✅ พร้อมใช้งาน';
+    document.getElementById('loadingMsg').style.color = '#16a34a';
+    document.getElementById('btnDic').disabled = false;
+    document.getElementById('btnTest').disabled = false;
+    setTimeout(function(){ document.getElementById('loadingMsg').textContent = ''; }, 2000);
+  };
+  script.onerror = function() {
+    // ลอง CDN สำรอง
+    var script2 = document.createElement('script');
+    script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    script2.onload = function() {
+      document.getElementById('loadingMsg').textContent = '✅ พร้อมใช้งาน';
+      document.getElementById('loadingMsg').style.color = '#16a34a';
+      document.getElementById('btnDic').disabled = false;
+      document.getElementById('btnTest').disabled = false;
+      setTimeout(function(){ document.getElementById('loadingMsg').textContent = ''; }, 2000);
+    };
+    script2.onerror = function() {
+      document.getElementById('loadingMsg').textContent = '❌ โหลดไม่ได้ — กรุณาเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่';
+      document.getElementById('loadingMsg').style.color = '#dc2626';
+    };
+    document.head.appendChild(script2);
+  };
+  document.getElementById('btnDic').disabled = true;
+  document.getElementById('btnTest').disabled = true;
+  document.head.appendChild(script);
+})();
+
+var setStatus = function(msg, cls) {
+  var el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + (cls || '');
+};
+
+// ══════════════════════════════════════════════════
+// DATA DICTIONARY
+// ══════════════════════════════════════════════════
+function generateDataDic() {
+  setStatus('กำลังสร้างไฟล์...', 'loading');
+  try {
+    var wb = XLSX.utils.book_new();
+
+    // ── Sheet 1: ภาพรวม ──
+    var overview = [
+      ['ระบบ', 'EnCo Vendor Registration — พจนานุกรมข้อมูล', '', '', ''],
+      ['ฐานข้อมูล', 'Supabase PostgreSQL', '', '', ''],
+      ['จัดทำ', 'พฤษภาคม 2569', '', '', ''],
+      ['', '', '', '', ''],
+      ['ตาราง', 'คำอธิบาย', 'จำนวน Column', 'จำนวน Row (ประมาณ)', 'หมายเหตุ'],
+      ['admins', 'บัญชีผู้ใช้งานฝ่ายจัดการ', '9', 'ไม่มาก', 'เข้าสู่ระบบผ่าน email/password'],
+      ['categories', 'กลุ่มงาน / ประเภทคู่ค้า', '8', '4–20', 'เพิ่มได้โดย Admin'],
+      ['announcements', 'ประกาศรับสมัครคู่ค้า', '10', 'ตามการใช้งาน', 'สร้างโดย Admin'],
+      ['submissions', 'ใบสมัครคู่ค้า', '23', 'ตามการใช้งาน', 'กรอกโดย Vendor'],
+      ['doc_requests', 'การขอเอกสารเพิ่มเติม', '4', 'ตามการใช้งาน', 'สร้างโดย Admin'],
+    ];
+    var ws1 = XLSX.utils.aoa_to_sheet(overview);
+    ws1['!cols'] = [{wch:20},{wch:40},{wch:18},{wch:22},{wch:30}];
+    XLSX.utils.book_append_sheet(wb, ws1, 'ภาพรวม');
+
+    // ── Sheet 2: admins ──
+    var admins = [
+      ['ตาราง: admins', 'บัญชีผู้ใช้งานฝ่ายจัดการ', '', '', ''],
+      ['', '', '', '', ''],
+      ['Column', 'ชนิดข้อมูล', 'คำอธิบาย', 'ตัวอย่าง', 'หมายเหตุ'],
+      ['id', 'UUID', 'รหัสเฉพาะ สร้างอัตโนมัติ', 'a1b2c3d4-e5f6...', 'Primary Key'],
+      ['email', 'VARCHAR(255)', 'อีเมลสำหรับเข้าสู่ระบบ', 'admin@enco.co.th', 'Unique'],
+      ['password', 'VARCHAR(255)', 'รหัสผ่าน', 'admin123', 'ควร hash ใน production'],
+      ['name', 'VARCHAR(255)', 'ชื่อ-นามสกุล', 'Administrator', ''],
+      ['role', 'VARCHAR(100)', 'ระดับสิทธิ์', 'Super Admin / Admin', ''],
+      ['permissions', 'TEXT[]', 'สิทธิ์การใช้งาน (array)', '{approve, manage-announcements}', 'หลายค่าได้'],
+      ['is_active', 'BOOLEAN', 'สถานะการใช้งาน', 'true / false', 'false = ปิดใช้งาน'],
+      ['created_at', 'TIMESTAMPTZ', 'วันที่สร้างบัญชี', '2026-05-22 10:00+07', 'Auto'],
+      ['updated_at', 'TIMESTAMPTZ', 'วันที่แก้ไขล่าสุด', '2026-05-22 10:00+07', 'Auto'],
+      ['', '', '', '', ''],
+      ['สิทธิ์ที่รองรับ (permissions)', '', '', '', ''],
+      ['approve', 'อนุมัติ/ปฏิเสธใบสมัคร', '', '', ''],
+      ['request-docs', 'ขอเอกสารเพิ่มเติม', '', '', ''],
+      ['manage-announcements', 'จัดการประกาศ', '', '', ''],
+      ['manage-groups', 'จัดการกลุ่มงาน', '', '', ''],
+      ['manage-users', 'จัดการผู้ใช้งาน', '', '', ''],
+      ['manage-admins', 'จัดการบัญชี Admin', '', '', ''],
+    ];
+    var ws2 = XLSX.utils.aoa_to_sheet(admins);
+    ws2['!cols'] = [{wch:22},{wch:18},{wch:34},{wch:30},{wch:26}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'admins');
+
+    // ── Sheet 3: categories ──
+    var cats = [
+      ['ตาราง: categories', 'กลุ่มงาน / ประเภทคู่ค้า', '', '', ''],
+      ['', '', '', '', ''],
+      ['Column', 'ชนิดข้อมูล', 'คำอธิบาย', 'ตัวอย่าง', 'หมายเหตุ'],
+      ['id', 'VARCHAR', 'รหัสกลุ่มงาน (ภาษาอังกฤษ ไม่มีช่องว่าง)', 'security, cleaning, repair, interior', 'Primary Key'],
+      ['name', 'TEXT', 'ชื่อกลุ่มงาน (หลัก)', 'งานรักษาความปลอดภัย', ''],
+      ['th', 'TEXT', 'ชื่อภาษาไทย', 'งานรักษาความปลอดภัย', ''],
+      ['en', 'TEXT', 'ชื่อภาษาอังกฤษ', 'Security Services', ''],
+      ['icon', 'TEXT', 'Emoji ประจำกลุ่ม', '🛡 🧹 🔧 🛠', 'Default: 📁'],
+      ['num', 'TEXT', 'ลำดับที่ (2 หลัก)', '01, 02, 03, 04', ''],
+      ['works_required', 'INTEGER', 'จำนวนผลงานที่ต้องแนบขั้นต่ำ', '3, 5', 'Default: 3'],
+      ['description', 'TEXT', 'คำอธิบายกลุ่มงาน', 'รปภ. ประจำพื้นที่ ระบบ CCTV', ''],
+    ];
+    var ws3 = XLSX.utils.aoa_to_sheet(cats);
+    ws3['!cols'] = [{wch:18},{wch:18},{wch:36},{wch:36},{wch:20}];
+    XLSX.utils.book_append_sheet(wb, ws3, 'categories');
+
+    // ── Sheet 4: announcements ──
+    var ann = [
+      ['ตาราง: announcements', 'ประกาศรับสมัครคู่ค้า', '', '', ''],
+      ['', '', '', '', ''],
+      ['Column', 'ชนิดข้อมูล', 'คำอธิบาย', 'ตัวอย่าง', 'หมายเหตุ'],
+      ['id', 'VARCHAR', 'เลขที่ประกาศ', 'AN-2026-001', 'Primary Key, ตั้งเอง'],
+      ['title', 'TEXT', 'หัวข้อประกาศ', 'รับสมัครบริษัทรักษาความปลอดภัย', ''],
+      ['description', 'TEXT', 'รายละเอียดย่อ', 'ต้องการบริษัทที่มีใบอนุญาต...', ''],
+      ['summary', 'TEXT', 'รายละเอียดเพิ่มเติม (ยาว)', 'คุณสมบัติผู้สมัคร...', ''],
+      ['status', 'TEXT', 'สถานะ (คำนวณจากวันที่อัตโนมัติ)', 'open / closing / closed / draft', 'ไม่ต้องตั้งเอง'],
+      ['categories', 'TEXT[]', 'กลุ่มงานที่เปิดรับ', '{security, cleaning}', 'เลือกได้หลายกลุ่ม'],
+      ['opened_at', 'DATE', 'วันที่เปิดรับสมัคร', '2026-05-01', ''],
+      ['closed_at', 'DATE', 'วันที่ปิดรับสมัคร', '2026-07-31', ''],
+      ['docs', 'JSONB', 'เอกสารแนบประกาศ', '[{"name":"TOR.pdf","url":"https://..."}]', 'Upload ผ่านระบบ'],
+      ['created_at', 'TIMESTAMPTZ', 'วันที่สร้างประกาศ', '2026-05-22 10:00+07', 'Auto'],
+      ['', '', '', '', ''],
+      ['ค่า status', '', '', '', ''],
+      ['open', 'เปิดรับสมัคร', 'วันปัจจุบันอยู่ในช่วงที่กำหนด', '', ''],
+      ['closing', 'ใกล้ปิดรับ', 'เหลือไม่เกิน 7 วัน', '', ''],
+      ['closed', 'ปิดรับสมัครแล้ว', 'เลยวัน closed_at', '', ''],
+      ['draft', 'ร่าง', 'ยังไม่ถึงวัน opened_at', '', ''],
+    ];
+    var ws4 = XLSX.utils.aoa_to_sheet(ann);
+    ws4['!cols'] = [{wch:18},{wch:18},{wch:36},{wch:36},{wch:26}];
+    XLSX.utils.book_append_sheet(wb, ws4, 'announcements');
+
+    // ── Sheet 5: submissions ──
+    var sub = [
+      ['ตาราง: submissions', 'ใบสมัครคู่ค้า', '', '', ''],
+      ['', '', '', '', ''],
+      ['Column', 'ชนิดข้อมูล', 'คำอธิบาย', 'ตัวอย่าง', 'หมายเหตุ'],
+      ['--- ข้อมูลการสมัคร ---', '', '', '', ''],
+      ['id', 'VARCHAR', 'เลขที่ใบสมัคร', 'AVL-26-0001', 'Primary Key, สร้างโดยระบบ'],
+      ['anno_id', 'VARCHAR', 'FK → announcements.id', 'AN-2026-001', 'Foreign Key'],
+      ['status', 'TEXT', 'สถานะใบสมัคร', 'new / review / approved / rejected', ''],
+      ['completeness', 'INTEGER', 'ความครบถ้วนเอกสาร (%)', '0–100', ''],
+      ['submitted_at', 'TIMESTAMPTZ', 'วันที่ยื่นสมัคร', '2026-05-22 14:30+07', 'Auto'],
+      ['created_at', 'TIMESTAMPTZ', 'วันที่สร้างระเบียน', '2026-05-22 14:30+07', 'Auto'],
+      ['--- ข้อมูลบริษัท ---', '', '', '', ''],
+      ['category', 'TEXT', 'กลุ่มงานที่สมัคร', 'security, cleaning', 'FK → categories.id'],
+      ['company', 'TEXT', 'ชื่อบริษัท', 'บริษัท เซฟการ์ด บริการ จำกัด', ''],
+      ['tax_id', 'VARCHAR(13)', 'เลขผู้เสียภาษี 13 หลัก', '0105556012345', 'ใช้ยืนยันตรวจสอบสถานะ'],
+      ['capital', 'TEXT', 'ทุนจดทะเบียน (บาท)', '5000000', ''],
+      ['years_in_business', 'TEXT', 'ระยะเวลาดำเนินธุรกิจ (ปี)', '10', ''],
+      ['--- ที่อยู่บริษัท ---', '', '', '', ''],
+      ['address', 'TEXT', 'ที่อยู่ (บ้านเลขที่ ถนน)', '123/45 ถ.พระราม 9', ''],
+      ['sub_district', 'TEXT', 'แขวง/ตำบล', 'ห้วยขวาง', ''],
+      ['district', 'TEXT', 'เขต/อำเภอ', 'ห้วยขวาง', ''],
+      ['province', 'TEXT', 'จังหวัด', 'กรุงเทพมหานคร', ''],
+      ['postcode', 'VARCHAR(5)', 'รหัสไปรษณีย์', '10310', ''],
+      ['--- ข้อมูลติดต่อบริษัท ---', '', '', '', ''],
+      ['phone', 'TEXT', 'โทรศัพท์บริษัท', '02-123-4567', ''],
+      ['mobile', 'TEXT', 'มือถือ', '081-234-5678', ''],
+      ['company_email', 'TEXT', 'อีเมลบริษัท', 'info@company.co.th', ''],
+      ['--- ผู้ติดต่อ ---', '', '', '', ''],
+      ['contact_name', 'TEXT', 'ชื่อผู้ติดต่อ', 'คุณสมชาย ใจดี', ''],
+      ['contact_position', 'TEXT', 'ตำแหน่ง', 'ผู้จัดการฝ่ายขาย', ''],
+      ['contact_email', 'TEXT', 'อีเมลผู้ติดต่อ', 'somchai@company.co.th', 'ใช้ยืนยันตรวจสอบสถานะ'],
+      ['contact_phone', 'TEXT', 'โทรศัพท์ผู้ติดต่อ', '081-234-5678', ''],
+      ['', '', '', '', ''],
+      ['ค่า status', '', '', '', ''],
+      ['new', 'ใหม่ รอตรวจสอบ', 'ยื่นสมัครแล้ว รอ Admin ดำเนินการ', '', ''],
+      ['review', 'กำลังตรวจสอบ', 'Admin กำลังพิจารณา', '', ''],
+      ['approved', 'อนุมัติ', 'ผ่านการพิจารณา', '', ''],
+      ['rejected', 'ปฏิเสธ', 'ไม่ผ่านการพิจารณา', '', ''],
+    ];
+    var ws5 = XLSX.utils.aoa_to_sheet(sub);
+    ws5['!cols'] = [{wch:22},{wch:18},{wch:34},{wch:36},{wch:28}];
+    XLSX.utils.book_append_sheet(wb, ws5, 'submissions');
+
+    // ── Sheet 6: doc_requests ──
+    var docreqs = [
+      ['ตาราง: doc_requests', 'การขอเอกสารเพิ่มเติม', '', '', ''],
+      ['', '', '', '', ''],
+      ['Column', 'ชนิดข้อมูล', 'คำอธิบาย', 'ตัวอย่าง', 'หมายเหตุ'],
+      ['id', 'UUID', 'รหัสเฉพาะ สร้างอัตโนมัติ', 'a1b2c3d4-...', 'Primary Key'],
+      ['submission_id', 'VARCHAR', 'FK → submissions.id', 'AVL-26-0001', 'Foreign Key'],
+      ['note', 'TEXT', 'รายละเอียดเอกสารที่ขอเพิ่ม', 'ขอ ISO Certificate เพิ่มเติม', ''],
+      ['created_at', 'TIMESTAMPTZ', 'วันที่ขอเอกสาร', '2026-05-22 15:00+07', 'Auto'],
+    ];
+    var ws6 = XLSX.utils.aoa_to_sheet(docreqs);
+    ws6['!cols'] = [{wch:20},{wch:18},{wch:36},{wch:38},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, ws6, 'doc_requests');
+
+    XLSX.writeFile(wb, 'EnCo_Data_Dictionary.xlsx');
+    setStatus('✅ Download สำเร็จ! เปิดไฟล์ EnCo_Data_Dictionary.xlsx', 'success');
+  } catch(e) {
+    setStatus('❌ เกิดข้อผิดพลาด: ' + e.message, 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════
+// TEST DATA
+// ══════════════════════════════════════════════════
+function generateTestData() {
+  setStatus('กำลังสร้างไฟล์...', 'loading');
+  try {
+    var wb = XLSX.utils.book_new();
+
+    // ── Sheet 1: categories ──
+    var cats = [
+      ['id', 'name (th)', 'en', 'icon', 'num', 'works_required', 'description'],
+      ['security', 'งานรักษาความปลอดภัย', 'Security Services', '🛡', '01', 3, 'รปภ. ประจำพื้นที่ ระบบ CCTV และงานควบคุมการเข้า-ออก'],
+      ['cleaning', 'งานรักษาความสะอาด', 'Cleaning Services', '🧹', '02', 3, 'แม่บ้าน ทำความสะอาดสำนักงาน อาคาร และพื้นที่ส่วนกลาง'],
+      ['repair', 'งานปรับปรุง-ซ่อมแซมทั่วไป', 'General Repair & Maintenance', '🔧', '03', 5, 'งานซ่อมบำรุงอาคาร ระบบไฟฟ้า ประปา ปรับอากาศ'],
+      ['interior', 'งานปรับปรุง-ซ่อมแซมตกแต่งภายใน', 'Interior Decoration', '🛠', '04', 5, 'ตกแต่งภายใน เฟอร์นิเจอร์ ฝ้า ผนัง พื้น และงาน built-in'],
+    ];
+    var wsCat = XLSX.utils.aoa_to_sheet(cats);
+    wsCat['!cols'] = [{wch:14},{wch:34},{wch:30},{wch:8},{wch:8},{wch:18},{wch:46}];
+    XLSX.utils.book_append_sheet(wb, wsCat, 'categories');
+
+    // ── Sheet 2: announcements ──
+    var ann = [
+      ['id', 'title', 'description', 'categories', 'opened_at', 'closed_at', 'status'],
+      ['AN-2026-001', 'รับสมัครบริษัทรักษาความปลอดภัย ปี 2569', 'EnCo เปิดรับสมัครบริษัทรักษาความปลอดภัยเพื่อดูแลพื้นที่สำนักงานใหญ่', 'security', '2026-05-01', '2026-07-31', 'open'],
+      ['AN-2026-002', 'รับสมัครบริษัทรักษาความสะอาดและซ่อมบำรุง ปี 2569', 'เปิดรับสมัครบริษัทรักษาความสะอาดและงานซ่อมบำรุงทั่วไป', 'cleaning, repair', '2026-05-15', '2026-08-15', 'open'],
+      ['AN-2026-003', 'รับสมัครบริษัทตกแต่งภายใน ปี 2569', 'เปิดรับสมัครบริษัทรับเหมาตกแต่งภายในสำหรับปรับปรุงสำนักงาน', 'interior', '2026-06-01', '2026-08-31', 'open'],
+    ];
+    var wsAnn = XLSX.utils.aoa_to_sheet(ann);
+    wsAnn['!cols'] = [{wch:16},{wch:48},{wch:50},{wch:18},{wch:14},{wch:14},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, wsAnn, 'announcements');
+
+    // ── Sheet 3: submissions ──
+    var subs = [
+      ['id','anno_id','category','company','tax_id','capital','years_in_business',
+       'address','sub_district','district','province','postcode',
+       'phone','mobile','company_email',
+       'contact_name','contact_position','contact_email','contact_phone',
+       'status','completeness'],
+      ['AVL-26-0001','AN-2026-001','security','บริษัท เซฟการ์ด บริการ จำกัด','0105556012345','10000000','12',
+       '123/45 ถนนพระราม 9','ห้วยขวาง','ห้วยขวาง','กรุงเทพมหานคร','10310',
+       '02-123-4567','081-234-5678','info@safeguard.co.th',
+       'คุณสมชาย ใจดี','ผู้จัดการฝ่ายขาย','somchai@safeguard.co.th','081-234-5678','approved',100],
+      ['AVL-26-0002','AN-2026-001','security','บริษัท พาวเวอร์ซีเคียวริตี้ จำกัด','0205558023456','5000000','8',
+       '456 ถนนสุขุมวิท 21','คลองเตยเหนือ','วัฒนา','กรุงเทพมหานคร','10110',
+       '02-234-5678','082-345-6789','info@powersecurity.co.th',
+       'คุณวิภา รักงาน','กรรมการผู้จัดการ','vipa@powersecurity.co.th','082-345-6789','review',85],
+      ['AVL-26-0003','AN-2026-002','cleaning','บริษัท คลีนโปร เซอร์วิส จำกัด','0305559034567','3000000','6',
+       '789 ถนนลาดพร้าว','จอมพล','จตุจักร','กรุงเทพมหานคร','10900',
+       '02-345-6789','083-456-7890','contact@cleanpro.co.th',
+       'คุณประภา สะอาด','ผู้อำนวยการ','prapa@cleanpro.co.th','083-456-7890','new',90],
+      ['AVL-26-0004','AN-2026-002','repair','บริษัท สมาร์ทเมนเทนแนนซ์ จำกัด','0405557045678','8000000','15',
+       '321 ถนนรัชดาภิเษก','ดินแดง','ดินแดง','กรุงเทพมหานคร','10400',
+       '02-456-7890','084-567-8901','info@smartmaintenance.co.th',
+       'คุณธนกร ซ่อมดี','ผู้จัดการโครงการ','thanakorn@smartmaintenance.co.th','084-567-8901','new',75],
+      ['AVL-26-0005','AN-2026-003','interior','บริษัท ดีไซน์โปร อินทีเรียร์ จำกัด','0505556056789','2000000','3',
+       '654 ถนนพหลโยธิน','สามเสนใน','พญาไท','กรุงเทพมหานคร','10400',
+       '02-567-8901','085-678-9012','hello@designpro.co.th',
+       'คุณมนัส สร้างสรรค์','CEO','manas@designpro.co.th','085-678-9012','rejected',60],
+    ];
+    var wsSub = XLSX.utils.aoa_to_sheet(subs);
+    wsSub['!cols'] = [{wch:14},{wch:14},{wch:12},{wch:36},{wch:16},{wch:12},{wch:10},
+      {wch:26},{wch:14},{wch:14},{wch:20},{wch:10},
+      {wch:14},{wch:14},{wch:28},
+      {wch:22},{wch:22},{wch:30},{wch:16},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, wsSub, 'submissions');
+
+    // ── Sheet 4: SQL Script ──
+    var sql = [
+      ['คำสั่ง SQL สำหรับรันใน Supabase SQL Editor'],
+      [''],
+      ['-- 1. กลุ่มงาน (categories)'],
+      ["INSERT INTO categories (id,name,th,en,icon,num,works_required,description) VALUES"],
+      ["  ('security','งานรักษาความปลอดภัย','งานรักษาความปลอดภัย','Security Services','🛡','01',3,'รปภ. ประจำพื้นที่ ระบบ CCTV'),"],
+      ["  ('cleaning','งานรักษาความสะอาด','งานรักษาความสะอาด','Cleaning Services','🧹','02',3,'แม่บ้าน ทำความสะอาดสำนักงาน'),"],
+      ["  ('repair','งานปรับปรุง-ซ่อมแซมทั่วไป','งานปรับปรุง-ซ่อมแซมทั่วไป','General Repair','🔧','03',5,'ซ่อมบำรุงอาคาร ไฟฟ้า ประปา'),"],
+      ["  ('interior','งานปรับปรุง-ซ่อมแซมตกแต่งภายใน','งานปรับปรุง-ซ่อมแซมตกแต่งภายใน','Interior Decoration','🛠','04',5,'ตกแต่งภายใน เฟอร์นิเจอร์')"],
+      ["ON CONFLICT (id) DO UPDATE SET th=EXCLUDED.th, en=EXCLUDED.en;"],
+      [''],
+      ['-- 2. ประกาศ (announcements)'],
+      ["INSERT INTO announcements (id,title,description,categories,opened_at,closed_at,status) VALUES"],
+      ["  ('AN-2026-001','รับสมัครบริษัทรักษาความปลอดภัย ปี 2569','EnCo เปิดรับสมัครบริษัทรักษาความปลอดภัย',ARRAY['security'],'2026-05-01','2026-07-31','open'),"],
+      ["  ('AN-2026-002','รับสมัครบริษัทรักษาความสะอาดและซ่อมบำรุง ปี 2569','เปิดรับสมัครบริษัทรักษาความสะอาด',ARRAY['cleaning','repair'],'2026-05-15','2026-08-15','open'),"],
+      ["  ('AN-2026-003','รับสมัครบริษัทตกแต่งภายใน ปี 2569','เปิดรับสมัครบริษัทรับเหมาตกแต่งภายใน',ARRAY['interior'],'2026-06-01','2026-08-31','open')"],
+      ["ON CONFLICT (id) DO NOTHING;"],
+      [''],
+      ['-- 3. ใบสมัคร (submissions) — 5 รายการตัวอย่าง'],
+      ["INSERT INTO submissions (id,anno_id,category,company,tax_id,capital,years_in_business,address,sub_district,district,province,postcode,phone,mobile,company_email,contact_name,contact_position,contact_email,contact_phone,status,completeness,submitted_at) VALUES"],
+      ["  ('AVL-26-0001','AN-2026-001','security','บริษัท เซฟการ์ด บริการ จำกัด','0105556012345','10000000','12','123/45 ถนนพระราม 9','ห้วยขวาง','ห้วยขวาง','กรุงเทพมหานคร','10310','02-123-4567','081-234-5678','info@safeguard.co.th','คุณสมชาย ใจดี','ผู้จัดการฝ่ายขาย','somchai@safeguard.co.th','081-234-5678','approved',100,NOW()-INTERVAL '10 days'),"],
+      ["  ('AVL-26-0002','AN-2026-001','security','บริษัท พาวเวอร์ซีเคียวริตี้ จำกัด','0205558023456','5000000','8','456 ถนนสุขุมวิท 21','คลองเตยเหนือ','วัฒนา','กรุงเทพมหานคร','10110','02-234-5678','082-345-6789','info@powersecurity.co.th','คุณวิภา รักงาน','กรรมการผู้จัดการ','vipa@powersecurity.co.th','082-345-6789','review',85,NOW()-INTERVAL '5 days'),"],
+      ["  ('AVL-26-0003','AN-2026-002','cleaning','บริษัท คลีนโปร เซอร์วิส จำกัด','0305559034567','3000000','6','789 ถนนลาดพร้าว','จอมพล','จตุจักร','กรุงเทพมหานคร','10900','02-345-6789','083-456-7890','contact@cleanpro.co.th','คุณประภา สะอาด','ผู้อำนวยการ','prapa@cleanpro.co.th','083-456-7890','new',90,NOW()-INTERVAL '2 days'),"],
+      ["  ('AVL-26-0004','AN-2026-002','repair','บริษัท สมาร์ทเมนเทนแนนซ์ จำกัด','0405557045678','8000000','15','321 ถนนรัชดาภิเษก','ดินแดง','ดินแดง','กรุงเทพมหานคร','10400','02-456-7890','084-567-8901','info@smartmaintenance.co.th','คุณธนกร ซ่อมดี','ผู้จัดการโครงการ','thanakorn@smartmaintenance.co.th','084-567-8901','new',75,NOW()-INTERVAL '1 day'),"],
+      ["  ('AVL-26-0005','AN-2026-003','interior','บริษัท ดีไซน์โปร อินทีเรียร์ จำกัด','0505556056789','2000000','3','654 ถนนพหลโยธิน','สามเสนใน','พญาไท','กรุงเทพมหานคร','10400','02-567-8901','085-678-9012','hello@designpro.co.th','คุณมนัส สร้างสรรค์','CEO','manas@designpro.co.th','085-678-9012','rejected',60,NOW()-INTERVAL '7 days')"],
+      ["ON CONFLICT (id) DO NOTHING;"],
+    ];
+    var wsSql = XLSX.utils.aoa_to_sheet(sql);
+    wsSql['!cols'] = [{wch:200}];
+    XLSX.utils.book_append_sheet(wb, wsSql, 'SQL Script');
+
+    XLSX.writeFile(wb, 'EnCo_Test_Data.xlsx');
+    setStatus('✅ Download สำเร็จ! เปิดไฟล์ EnCo_Test_Data.xlsx', 'success');
+  } catch(e) {
+    setStatus('❌ เกิดข้อผิดพลาด: ' + e.message, 'error');
+  }
+}
+</script>
+</body>
+</html>

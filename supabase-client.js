@@ -238,6 +238,30 @@ async function updateSubmissionInDb(id, updates) {
 
 // ─── Admin Functions ───
 
+// Get admin by email only (สำหรับ Azure AD login — ไม่ต้องใช้ password)
+async function getAdminByEmailOnly(email) {
+  try {
+    console.log('🔐 Looking up admin by email:', email);
+    const { data, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      console.warn('⚠️ Admin not found:', email);
+      return null;
+    }
+
+    console.log('✅ Admin found:', email);
+    return data;
+  } catch (err) {
+    console.error('❌ Error looking up admin:', err);
+    return null;
+  }
+}
+
 // Get admin by email and password
 async function getAdminByEmail(email, password) {
   try {
@@ -481,6 +505,7 @@ Object.assign(window, {
   createAnnouncementInDb,
   updateAnnouncementInDb,
   deleteAnnouncementInDb,
+  getAdminByEmailOnly,
   getAdminByEmail,
   getAllAdmins,
   createAdmin,
