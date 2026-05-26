@@ -146,6 +146,7 @@ function VendorLanding({ goto }) {
                       const preqDoc = (a.docs || []).find(d =>
                         d.name && d.name.toLowerCase().includes(g.id.toLowerCase())
                       );
+                      const hasFile = !!(preqDoc?.url);
                       return (
                         <div key={cid} style={{
                           display: "flex", alignItems: "center", gap: 12,
@@ -158,13 +159,27 @@ function VendorLanding({ goto }) {
                           <span style={{ fontSize: 20 }}>{g.icon}</span>
                           <span style={{ fontWeight: 600, fontSize: 15, flex: 1,
                             color: "var(--text)" }}>{g.th}</span>
-                          <button
-                            className="btn btn-soft btn-sm"
-                            onClick={() => simDownload(`Pre-Q_${g.th}.pdf`, preqDoc?.url)}
-                          >
-                            <Icon name="download" size={13} />
-                            ดาวน์โหลด Pre-Q
-                          </button>
+                          {hasFile ? (
+                            <a
+                              href={preqDoc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-soft btn-sm"
+                              style={{ textDecoration: "none" }}
+                            >
+                              <Icon name="download" size={13} />
+                              ดาวน์โหลด Pre-Q
+                            </a>
+                          ) : (
+                            <span style={{
+                              fontSize: 12, color: "var(--text-3)",
+                              padding: "5px 10px",
+                              border: "1px dashed var(--line)",
+                              borderRadius: 6,
+                            }}>
+                              ยังไม่มีไฟล์
+                            </span>
+                          )}
                         </div>
                       );
                     })}
