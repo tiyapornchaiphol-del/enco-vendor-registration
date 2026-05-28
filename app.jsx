@@ -374,6 +374,7 @@ function App() {
                 </div>
                 <button className="btn btn-ghost btn-sm btn-icon" title="ออกจากระบบ"
                   onClick={async () => {
+                    await window.logAuditEvent?.('admin.logout', { email: adminUser?.email });
                     await window.signOutAdmin?.();
                     setAdminUser(null);
                     localStorage.removeItem("enco_page");
@@ -971,6 +972,7 @@ function AdminUsers() {
     const next = !u.is_active;
     await window.updateAdmin(u.id, { is_active: next });
     setUsers(users.map(x => x.id === u.id ? { ...x, is_active: next } : x));
+    window.logAuditEvent?.(next ? 'admin_user.activate' : 'admin_user.deactivate', { target_id: u.id, name: u.name });
     showToast(next ? "เปิดใช้งานแล้ว" : "ระงับผู้ใช้แล้ว");
     setTogglingId(null);
   };

@@ -268,6 +268,21 @@ async function updateSubmissionInDb(id, updates) {
   }
 }
 
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+// บันทึก audit event — ไม่ throw ถ้าล้มเหลว เพื่อไม่ให้กระทบการทำงานหลัก
+async function logAuditEvent(action, details = {}) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    await supabase.from('audit_log').insert([{
+      actor_id:    session?.user?.id    || null,
+      actor_email: session?.user?.email || null,
+      action,
+      details,
+    }]);
+  } catch (_) { /* audit failure must never crash the app */ }
+}
+
 // ─── Admin Auth Functions (Supabase Auth — ไม่เก็บ password ใน DB) ────────────
 
 // Helper: ดึง profile จาก admin_profiles
@@ -297,6 +312,8 @@ async function getAdminByEmail(email, password) {
       return null;
     }
     console.log('✅ Admin authenticated:', email, '— Role:', profile.role);
+    // Log successful login (fire-and-forget — session exists now)
+    logAuditEvent('admin.login', { email: data.user.email, role: profile.role });
     return { id: data.user.id, email: data.user.email, ...profile, permissions: [] };
   } catch (err) {
     console.error('❌ Login error:', err);
@@ -636,6 +653,7 @@ async function updateSiteSettingsInDb(newSettings) {
 // Export functions
 Object.assign(window, {
   supabase,
+  logAuditEvent,
   getSubmissionsFromDb,
   getAnnouncementsFromDb,
   getCategoriesFromDb,

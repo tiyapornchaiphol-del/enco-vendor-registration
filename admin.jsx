@@ -768,6 +768,7 @@ function AdminAnnouncements({ goto }) {
           docs: data.docs
         });
         setAnnouncements(announcements.map(a => a.id === data.id ? { ...a, ...data } : a));
+        window.logAuditEvent?.('announcement.update', { id: data.id, title: data.title });
       } else {
         // Create new announcement
         const newId = `AN-${new Date().getFullYear()}-${String(announcements.filter(a => a.id.startsWith('AN-')).length + 1).padStart(3, '0')}`;
@@ -784,6 +785,7 @@ function AdminAnnouncements({ goto }) {
           docs: annoData.docs
         });
         setAnnouncements([annoData, ...announcements]);
+        window.logAuditEvent?.('announcement.create', { id: annoData.id, title: annoData.title });
       }
       setEditing(null);
     } catch (error) {
@@ -796,6 +798,7 @@ function AdminAnnouncements({ goto }) {
       try {
         await window.deleteAnnouncementInDb(id);
         setAnnouncements(announcements.filter(a => a.id !== id));
+        window.logAuditEvent?.('announcement.delete', { id });
       } catch (error) {
         console.error('Error deleting announcement:', error);
         alert('เกิดข้อผิดพลาดในการลบประกาศ');
@@ -1473,6 +1476,7 @@ function AdminSettings() {
     try {
       await window.updateSiteSettingsInDb(form);
       setSettings({ ...form });
+      window.logAuditEvent?.('settings.update', { orgName: form.orgName, siteTitle: form.siteTitle });
       showToast("บันทึกการตั้งค่าเรียบร้อยแล้ว", "success");
     } catch (e) {
       showToast("บันทึกไม่สำเร็จ: " + (e.message || e), "danger");

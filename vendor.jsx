@@ -460,8 +460,19 @@ function VendorForm({ goto, annoId }) {
 
   const [submitStep, setSubmitStep] = React.useState("");
 
+  const SUBMIT_COOLDOWN_MS = 10 * 60 * 1000; // 10 นาที
+
   const submit = async () => {
     if (!currentValid.ok) { setShowErr(true); return; }
+
+    // ── Rate limit: ป้องกัน spam ──
+    const lastSubmit = parseInt(localStorage.getItem("enco_last_submit") || "0", 10);
+    const elapsed = Date.now() - lastSubmit;
+    if (lastSubmit && elapsed < SUBMIT_COOLDOWN_MS) {
+      const remaining = Math.ceil((SUBMIT_COOLDOWN_MS - elapsed) / 60000);
+      alert(`กรุณารออีก ${remaining} นาทีก่อนส่งใบสมัครอีกครั้ง เพื่อป้องกันการส่งซ้ำ`);
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -501,6 +512,9 @@ function VendorForm({ goto, annoId }) {
       if (window.createSubmissionInDb) {
         await window.createSubmissionInDb(submissionData);
       }
+
+      // บันทึก timestamp สำหรับ rate limit
+      localStorage.setItem("enco_last_submit", Date.now().toString());
 
       setSubmissionId(id);
       setSubmitted(true);
