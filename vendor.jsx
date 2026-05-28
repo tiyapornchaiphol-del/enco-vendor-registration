@@ -101,10 +101,9 @@ function VendorLanding({ goto }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 40 }}>
         {(open || []).map(a => (
-          <div key={a.id} className="card" style={{ padding: "24px 28px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto",
-              gap: 24, alignItems: "start" }}>
-              <div style={{ minWidth: 0 }}>
+          <div key={a.id} className="card" style={{ padding: "clamp(14px, 4vw, 24px) clamp(14px, 5vw, 28px)" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "flex-start" }}>
+              <div style={{ flex: 1, minWidth: 260, minWidth: 0 }}>
                 {/* Status + ID */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14,
                   flexWrap: "wrap" }}>
@@ -153,19 +152,20 @@ function VendorLanding({ goto }) {
                       const hasFile = !!(preqDoc?.url);
                       return (
                         <div key={cid} style={{
-                          display: "flex", alignItems: "center", gap: 12,
-                          padding: "11px 16px",
+                          display: "flex", alignItems: "center", gap: 10,
+                          padding: "10px 14px",
                           border: `1px solid ${hasFile ? "var(--primary-border)" : "var(--line)"}`,
                           background: hasFile ? "var(--primary-soft)" : "var(--surface-2)",
-                          borderRadius: 10, flexWrap: "wrap",
+                          borderRadius: 10,
                         }}>
-                          <span style={{ fontSize: 20 }}>{g.icon}</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, fontSize: 15, color: "var(--text)" }}>
+                          <span style={{ fontSize: 18, flexShrink: 0 }}>{g.icon}</span>
+                          <div style={{ flex: 1, minWidth: 80, overflow: "hidden" }}>
+                            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)",
+                              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                               {g.th}
                             </div>
                             {hasFile && (
-                              <div style={{ fontSize: 11.5, color: "var(--primary-ink)", marginTop: 2,
+                              <div style={{ fontSize: 11, color: "var(--primary-ink)", marginTop: 1,
                                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                                 fontFamily: "var(--font-mono)" }}>
                                 {preqDoc.name}
@@ -176,9 +176,9 @@ function VendorLanding({ goto }) {
                             <button
                               className="btn btn-sm"
                               style={{
-                                flexShrink: 0, textDecoration: "none",
+                                flexShrink: 0,
                                 background: "var(--primary)", color: "#fff",
-                                border: "none",
+                                border: "none", whiteSpace: "nowrap",
                               }}
                               onClick={() => forceDownload(preqDoc.url, preqDoc.name)}
                               title={`ดาวน์โหลด ${preqDoc.name}`}
@@ -188,8 +188,8 @@ function VendorLanding({ goto }) {
                             </button>
                           ) : (
                             <span style={{ fontSize: 12, color: "var(--text-3)",
-                              padding: "5px 10px", border: "1px dashed var(--line)",
-                              borderRadius: 6, flexShrink: 0 }}>
+                              padding: "4px 8px", border: "1px dashed var(--line)",
+                              borderRadius: 6, flexShrink: 0, whiteSpace: "nowrap" }}>
                               ยังไม่มีไฟล์
                             </span>
                           )}
@@ -199,7 +199,7 @@ function VendorLanding({ goto }) {
                   </div>
                 </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 160 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
                 <button className="btn btn-primary" onClick={() => goto("form", a.id)}>
                   สมัครประกาศนี้
                 </button>
