@@ -378,7 +378,7 @@ function App() {
                     await window.signOutAdmin?.();
                     setAdminUser(null);
                     localStorage.removeItem("enco_page");
-                    window.location.href = window.location.pathname;
+                    window.location.href = window.location.pathname + "#admin";
                   }}>
                   <Icon name="logout" size={14} />
                 </button>
