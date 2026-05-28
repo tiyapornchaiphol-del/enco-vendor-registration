@@ -268,66 +268,70 @@ async function updateSubmissionInDb(id, updates) {
   }
 }
 
-// ─── Admin Functions ───
+// ─── Admin Auth Functions (Supabase Auth — ไม่เก็บ password ใน DB) ────────────
 
-// Get admin by email only (สำหรับ Azure AD login — ไม่ต้องใช้ password)
-async function getAdminByEmailOnly(email) {
-  try {
-    console.log('🔐 Looking up admin by email:', email);
-    const { data, error } = await supabase
-      .from('admins')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .eq('is_active', true)
-      .single();
-
-    if (error) {
-      console.warn('⚠️ Admin not found:', email);
-      return null;
-    }
-
-    console.log('✅ Admin found:', email);
-    return data;
-  } catch (err) {
-    console.error('❌ Error looking up admin:', err);
-    return null;
-  }
+// Helper: ดึง profile จาก admin_profiles
+async function _getAdminProfile(userId) {
+  const { data, error } = await supabase
+    .from('admin_profiles')
+    .select('name, role, is_active')
+    .eq('id', userId)
+    .single();
+  if (error || !data || !data.is_active) return null;
+  return { name: data.name, role: data.role };
 }
 
-// Get admin by email and password
+// Login admin ผ่าน Supabase Auth (password hash โดย Supabase, ไม่เก็บ plaintext)
 async function getAdminByEmail(email, password) {
   try {
     console.log('🔐 Authenticating admin:', email);
-    const { data, error } = await supabase
-      .from('admins')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .eq('password', password)
-      .eq('is_active', true)
-      .single();
-
-    if (error) {
-      console.error('❌ Admin auth error:', error);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password,
+    });
+    if (error) { console.warn('⚠️ Auth failed:', error.message); return null; }
+    const profile = await _getAdminProfile(data.user.id);
+    if (!profile) {
+      console.warn('⚠️ ไม่พบ admin_profiles สำหรับ:', email);
+      await supabase.auth.signOut();
       return null;
     }
-
-    console.log('✅ Admin authenticated:', email);
-    return data;
+    console.log('✅ Admin authenticated:', email, '— Role:', profile.role);
+    return { id: data.user.id, email: data.user.email, ...profile, permissions: [] };
   } catch (err) {
-    console.error('❌ Error getting admin:', err);
+    console.error('❌ Login error:', err);
     return null;
   }
 }
 
-// Get all admins
+// ตรวจสอบ Supabase session ที่มีอยู่ (เรียกตอน load หน้า #admin)
+async function checkAdminSession() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const profile = await _getAdminProfile(session.user.id);
+    if (!profile) return null;
+    console.log('✅ Admin session restored:', session.user.email);
+    return { id: session.user.id, email: session.user.email, ...profile, permissions: [] };
+  } catch (err) {
+    console.error('❌ Session check error:', err);
+    return null;
+  }
+}
+
+// Sign out admin
+async function signOutAdmin() {
+  await supabase.auth.signOut();
+  console.log('👋 Admin signed out');
+}
+
+// Get all admin profiles (requires authenticated session)
 async function getAllAdmins() {
   try {
     const { data, error } = await supabase
-      .from('admins')
-      .select('*')
-      .eq('is_active', true)
+      .from('admin_profiles')
+      .select('id, name, role, is_active, created_at')
       .order('created_at', { ascending: false });
-
     if (error) throw error;
     return data || [];
   } catch (err) {
@@ -336,40 +340,15 @@ async function getAllAdmins() {
   }
 }
 
-// Create new admin
-async function createAdmin(email, password, name, role = 'Admin') {
-  try {
-    const { data, error } = await supabase
-      .from('admins')
-      .insert({
-        email: email.toLowerCase(),
-        password,
-        name,
-        role,
-        is_active: true
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    console.log('✅ Admin created:', email);
-    return data;
-  } catch (err) {
-    console.error('❌ Error creating admin:', err);
-    return null;
-  }
-}
-
-// Update admin
+// Update admin profile
 async function updateAdmin(id, updates) {
   try {
     const { data, error } = await supabase
-      .from('admins')
+      .from('admin_profiles')
       .update({ ...updates, updated_at: new Date() })
       .eq('id', id)
       .select()
       .single();
-
     if (error) throw error;
     console.log('✅ Admin updated:', id);
     return data;
@@ -379,16 +358,15 @@ async function updateAdmin(id, updates) {
   }
 }
 
-// Delete admin (soft delete - set is_active to false)
+// Deactivate admin (soft delete)
 async function deactivateAdmin(id) {
   try {
     const { data, error } = await supabase
-      .from('admins')
+      .from('admin_profiles')
       .update({ is_active: false, updated_at: new Date() })
       .eq('id', id)
       .select()
       .single();
-
     if (error) throw error;
     console.log('✅ Admin deactivated:', id);
     return data;
@@ -396,6 +374,13 @@ async function deactivateAdmin(id) {
     console.error('❌ Error deactivating admin:', err);
     return null;
   }
+}
+
+// หมายเหตุ: การสร้าง admin user ใหม่ต้องทำผ่าน Supabase Dashboard → Auth → Users
+// แล้ว INSERT INTO admin_profiles (id, name, role) VALUES ('uuid', 'ชื่อ', 'Role');
+async function createAdmin() {
+  console.warn('⚠️ กรุณาสร้าง admin ผ่าน Supabase Dashboard > Auth > Users');
+  return null;
 }
 
 // ─── Storage Functions ───
@@ -664,10 +649,10 @@ Object.assign(window, {
   createAnnouncementInDb,
   updateAnnouncementInDb,
   deleteAnnouncementInDb,
-  getAdminByEmailOnly,
   getAdminByEmail,
+  checkAdminSession,
+  signOutAdmin,
   getAllAdmins,
-  createAdmin,
   updateAdmin,
   deactivateAdmin,
   getAvlDocumentsFromDb,

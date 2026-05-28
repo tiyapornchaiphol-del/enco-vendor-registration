@@ -166,25 +166,6 @@ function AdminLoginPage({ onLogin }) {
   );
 }
 
-// ── Session config ────────────────────────────────────────────────────────────
-const SESSION_MS = 8 * 60 * 60 * 1000; // หมดอายุหลัง 8 ชั่วโมงนับจากเวลา login
-
-function loadSavedAdmin() {
-  try {
-    const raw = localStorage.getItem("enco_admin_user");
-    if (!raw) return null;
-    const u = JSON.parse(raw);
-    // ตรวจสอบ session หมดอายุ
-    if (!u.loginAt || Date.now() - u.loginAt > SESSION_MS) {
-      localStorage.removeItem("enco_admin_user");
-      localStorage.removeItem("enco_page");
-      console.log("⏰ Admin session หมดอายุ — กรุณา login ใหม่");
-      return null;
-    }
-    return u;
-  } catch (_) { return null; }
-}
-
 function App() {
   const [t, setTweak] = useTweaks(window.TWEAK_DEFAULTS);
 
@@ -193,18 +174,15 @@ function App() {
   // Vendor portal has zero indication that an admin area exists
   const [adminRoute] = React.useState(() => window.location.hash === "#admin");
 
-  // Admin session ถูก restore เฉพาะเมื่อ URL มี #admin เท่านั้น
-  // — ถ้าเปิด tab ใหม่ไม่มี #admin จะไม่เห็น admin เลย แม้ session ยังอยู่
-  const [adminUser, setAdminUser] = React.useState(() =>
-    window.location.hash === "#admin" ? loadSavedAdmin() : null
-  );
+  // adminUser: null จนกว่า Supabase session จะถูก verify (async)
+  // ทำงานเฉพาะ URL ที่มี #admin เท่านั้น — vendor tab ไม่มีทางเห็น admin
+  const [adminUser, setAdminUser] = React.useState(null);
+  const [authChecked, setAuthChecked] = React.useState(!adminRoute);
   const isAdmin = adminUser !== null;
 
   // Restore last page — vendor ขึ้นหน้าหลักเสมอ, admin restore ได้เฉพาะ tab #admin
   const [page, setPage] = React.useState(() => {
     if (window.location.hash !== "#admin") return "landing";
-    const saved = loadSavedAdmin();
-    if (!saved) return "landing";
     const savedPage = localStorage.getItem("enco_page") || "admin-dashboard";
     if (savedPage === "track" || !savedPage.startsWith("admin")) return "admin-dashboard";
     return savedPage;
@@ -223,27 +201,28 @@ function App() {
     } catch (_e) {}
   }, [page, detailId]);
 
-  // Save admin session to localStorage
+  // ── ตรวจสอบ Supabase session ตอนโหลดหน้า (#admin เท่านั้น) ─────────────────
   React.useEffect(() => {
-    try {
-      if (adminUser) localStorage.setItem("enco_admin_user", JSON.stringify(adminUser));
-      else localStorage.removeItem("enco_admin_user");
-    } catch (_e) {}
-  }, [adminUser]);
+    if (!adminRoute) return;
+    window.checkAdminSession?.().then(user => {
+      if (user) setAdminUser({ ...user, loginAt: Date.now() });
+      setAuthChecked(true);
+    });
+  }, []);
 
-  // ── ตรวจสอบ session หมดอายุระหว่างใช้งาน (ทุก 5 นาที) ─────────────────────
+  // ── ฟัง auth state change จาก Supabase (token หมดอายุ, sign out ฯลฯ) ────────
   React.useEffect(() => {
-    if (!adminUser) return;
-    const id = setInterval(() => {
-      if (!adminUser?.loginAt || Date.now() - adminUser.loginAt > SESSION_MS) {
-        console.log("⏰ Admin session หมดอายุระหว่างใช้งาน");
-        localStorage.removeItem("enco_admin_user");
-        localStorage.removeItem("enco_page");
-        setAdminUser(null);
+    if (!adminRoute) return;
+    const { data: { subscription } } = window.supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED") {
+        if (event === "SIGNED_OUT") {
+          setAdminUser(null);
+          localStorage.removeItem("enco_page");
+        }
       }
-    }, 5 * 60 * 1000);
-    return () => clearInterval(id);
-  }, [adminUser]);
+    });
+    return () => subscription?.unsubscribe();
+  }, []);
 
   // Fetch data from Supabase (includes groups, announcements, submissions, categories, settings)
   const {
@@ -315,6 +294,21 @@ function App() {
   ];
   const nav = isAdmin ? adminNav : vendorNav;
 
+  // ── กำลังตรวจสอบ Supabase session (แสดงแค่ครู่เดียวตอนโหลด) ──────────────
+  if (adminRoute && !authChecked) {
+    return (
+      <div data-density={t.density} data-dark={t.dark ? "true" : "false"}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center",
+          minHeight: "100vh", background: "var(--bg)", flexDirection: "column", gap: 16 }}>
+        <div style={{ width: 32, height: 32, border: "3px solid var(--line)",
+          borderTopColor: "var(--primary)", borderRadius: "50%",
+          animation: "spin .8s linear infinite" }} />
+        <div style={{ fontSize: 13, color: "var(--text-3)" }}>กำลังตรวจสอบสิทธิ์...</div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
+  }
+
   // ── Standalone admin login page ───────────────────────────────────────────
   // Shown ONLY when URL hash is #admin and no session exists.
   // Vendor users who never visit #admin will never see this.
@@ -324,6 +318,7 @@ function App() {
         <div data-density={t.density} data-dark={t.dark ? "true" : "false"}>
           <AdminLoginPage onLogin={(account) => {
             setAdminUser({ ...account, loginAt: Date.now() });
+            setAuthChecked(true);
             setPage("admin-dashboard");
           }} />
         </div>
@@ -378,9 +373,10 @@ function App() {
                   <div style={{ fontSize: 11.5, color: "var(--text-3)" }}>{adminUser.role}</div>
                 </div>
                 <button className="btn btn-ghost btn-sm btn-icon" title="ออกจากระบบ"
-                  onClick={() => {
+                  onClick={async () => {
+                    await window.signOutAdmin?.();
                     setAdminUser(null);
-                    // Clear session and return to vendor portal (no #admin hash)
+                    localStorage.removeItem("enco_page");
                     window.location.href = window.location.pathname;
                   }}>
                   <Icon name="logout" size={14} />
