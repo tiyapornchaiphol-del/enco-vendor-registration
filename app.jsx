@@ -193,13 +193,16 @@ function App() {
   // Vendor portal has zero indication that an admin area exists
   const [adminRoute] = React.useState(() => window.location.hash === "#admin");
 
-  const [adminUser, setAdminUser] = React.useState(loadSavedAdmin);
+  // Admin session ถูก restore เฉพาะเมื่อ URL มี #admin เท่านั้น
+  // — ถ้าเปิด tab ใหม่ไม่มี #admin จะไม่เห็น admin เลย แม้ session ยังอยู่
+  const [adminUser, setAdminUser] = React.useState(() =>
+    window.location.hash === "#admin" ? loadSavedAdmin() : null
+  );
   const isAdmin = adminUser !== null;
 
-  // Restore last page from localStorage — vendor always starts at landing,
-  // only admin sessions restore their last page.
+  // Restore last page — vendor ขึ้นหน้าหลักเสมอ, admin restore ได้เฉพาะ tab #admin
   const [page, setPage] = React.useState(() => {
-    // ถ้าไม่มี session ที่ valid อยู่ → vendor เสมอ
+    if (window.location.hash !== "#admin") return "landing";
     const saved = loadSavedAdmin();
     if (!saved) return "landing";
     const savedPage = localStorage.getItem("enco_page") || "admin-dashboard";
