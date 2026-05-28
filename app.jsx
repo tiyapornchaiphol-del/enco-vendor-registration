@@ -183,15 +183,14 @@ function App() {
   });
   const isAdmin = adminUser !== null;
 
-  // Restore last page from localStorage
+  // Restore last page from localStorage — vendor always starts at landing,
+  // only admin sessions restore their last page.
   const [page, setPage] = React.useState(() => {
     try {
       const isAdminSaved = !!localStorage.getItem("enco_admin_user");
-      const savedPage = localStorage.getItem("enco_page") || "landing";
-      // Only restore admin pages if admin is logged in
-      if (savedPage.startsWith("admin") && !isAdminSaved) return "landing";
-      // track page was removed — redirect to landing
-      if (savedPage === "track") return "landing";
+      if (!isAdminSaved) return "landing"; // vendor ใหม่ทุกครั้ง
+      const savedPage = localStorage.getItem("enco_page") || "admin-dashboard";
+      if (savedPage === "track" || !savedPage.startsWith("admin")) return "admin-dashboard";
       return savedPage;
     } catch (_e) { return "landing"; }
   });
