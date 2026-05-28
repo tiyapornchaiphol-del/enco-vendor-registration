@@ -46,6 +46,16 @@ function useSupabaseData() {
   const [submissions, setSubmissions] = React.useState([]);
   const [announcements, setAnnouncements] = React.useState([]);
   const [categories, setCategories] = React.useState([]);
+  const [settings, setSettings] = React.useState(
+    () => window.DEFAULT_SETTINGS ? { ...window.DEFAULT_SETTINGS } : {
+      orgName: "EnCo", orgFullName: "บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด",
+      portalSubtitle: "Vendor Portal", contactEmail: "procurement.enco@energycomplex.co.th",
+      contactPhone: "02-123-4567 ต่อ 8801", logoUrl: "", logoInitials: "E",
+      siteTitle: "EnCo Vendor Registration",
+      avlName: "EnCo Approved Vendor List (AVL)",
+      heroTitle: "ระบบขึ้นทะเบียนผู้ค้าของ EnCo",
+    }
+  );
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
 
@@ -60,20 +70,25 @@ function useSupabaseData() {
         console.log('window.getAnnouncementsFromDb:', typeof window.getAnnouncementsFromDb);
         console.log('window.getCategoriesFromDb:', typeof window.getCategoriesFromDb);
 
-        // Fetch submissions, announcements, and categories from Supabase
-        const subsData = await window.getSubmissionsFromDb?.();
-        const annData = await window.getAnnouncementsFromDb?.();
-        const catData = await window.getCategoriesFromDb?.();
+        // Fetch all data from Supabase in parallel
+        const [subsData, annData, catData, settingsData] = await Promise.all([
+          window.getSubmissionsFromDb?.(),
+          window.getAnnouncementsFromDb?.(),
+          window.getCategoriesFromDb?.(),
+          window.getSiteSettingsFromDb?.(),
+        ]);
 
         console.log('✅ Supabase data loaded:', {
           subsData: subsData?.length,
           annData: annData?.length,
-          catData: catData?.length
+          catData: catData?.length,
+          settings: !!settingsData,
         });
 
         setSubmissions(subsData || []);
         setAnnouncements(annData || []);
         setCategories(catData || []);
+        if (settingsData) setSettings(settingsData);
       } catch (err) {
         console.error('❌ Error loading Supabase data:', err);
         setError(err.message);
@@ -97,6 +112,8 @@ function useSupabaseData() {
     setAnnouncements,
     categories: categories && categories.length > 0 ? categories : VENDOR_CATEGORIES,
     setCategories,
+    settings,
+    setSettings,
     loading,
     error
   };

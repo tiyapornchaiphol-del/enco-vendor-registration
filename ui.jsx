@@ -37,23 +37,36 @@ const Icon = ({ name, size = 18, stroke = 1.6, style }) => {
   );
 };
 
-const Logo = ({ size = 28, color }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-    <div style={{
-      width: size, height: size, borderRadius: 8,
-      background: color || "var(--primary)",
-      display: "grid", placeItems: "center",
-      color: "#fff", fontWeight: 700, fontSize: size * 0.46,
-      fontFamily: "var(--font-en)", letterSpacing: "-.02em",
-      boxShadow: "inset 0 -2px 0 rgba(0,0,0,.12)",
-    }}>E</div>
-    <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.05 }}>
-      <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: ".01em" }}>EnCo</span>
-      <span style={{ fontSize: 10.5, color: "var(--text-3)", letterSpacing: ".06em",
-        textTransform: "uppercase", fontFamily: "var(--font-en)" }}>Vendor Portal</span>
+const Logo = ({ size = 28, color }) => {
+  const ctx = useData();
+  const s = ctx?.settings || {};
+  const orgName = s.orgName || "EnCo";
+  const subtitle = s.portalSubtitle || "Vendor Portal";
+  const initials = s.logoInitials || orgName.slice(0, 1) || "E";
+  const logoUrl  = s.logoUrl || "";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{
+        width: size, height: size, borderRadius: 8,
+        background: color || "var(--primary)",
+        display: "grid", placeItems: "center",
+        color: "#fff", fontWeight: 700, fontSize: size * 0.46,
+        fontFamily: "var(--font-en)", letterSpacing: "-.02em",
+        boxShadow: "inset 0 -2px 0 rgba(0,0,0,.12)",
+        overflow: "hidden", flexShrink: 0,
+      }}>
+        {logoUrl
+          ? <img src={logoUrl} alt={orgName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : initials}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.05 }}>
+        <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: ".01em" }}>{orgName}</span>
+        <span style={{ fontSize: 10.5, color: "var(--text-3)", letterSpacing: ".06em",
+          textTransform: "uppercase", fontFamily: "var(--font-en)" }}>{subtitle}</span>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const StatusChip = ({ status, map, lang = "th" }) => {
   const m = (map || STATUS_LABEL)[status];

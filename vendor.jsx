@@ -39,7 +39,7 @@ function fmtDate(str) {
 
 // ── Landing / announcement page ─────────────────────────────────────────────
 function VendorLanding({ goto }) {
-  const { groups, announcements } = useData();
+  const { groups, announcements, settings = {} } = useData();
   const annList = announcements || ANNOUNCEMENTS;
   const groupList = groups || VENDOR_CATEGORIES;
   console.log('🎯 VendorLanding:', { annList: annList?.length, groupList: groupList?.length });
@@ -62,19 +62,19 @@ function VendorLanding({ goto }) {
             padding: "5px 12px", background: "rgba(255,255,255,.16)",
             borderRadius: 999, fontSize: 12.5, fontWeight: 500, marginBottom: 18 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />
-            <span>EnCo Approved Vendor List (AVL)</span>
+            <span>{settings.avlName || "EnCo Approved Vendor List (AVL)"}</span>
           </div>
           <h1 style={{ margin: 0, fontSize: "clamp(26px, 3.6vw, 38px)", lineHeight: 1.2,
             fontWeight: 600, letterSpacing: "-.01em", marginBottom: 12 }}>
-            ระบบขึ้นทะเบียนผู้ค้าของ EnCo
+            {settings.heroTitle || "ระบบขึ้นทะเบียนผู้ค้าของ EnCo"}
           </h1>
           <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.8, opacity: .92,
             maxWidth: 700, marginBottom: 24 }}>
-            บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด (EnCo) ขอเชิญชวนผู้ค้าที่สนใจสมัครขึ้นทะเบียนของ EnCo
+            {settings.orgFullName || "บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด"} ({settings.orgName || "EnCo"}) ขอเชิญชวนผู้ค้าที่สนใจสมัครขึ้นทะเบียนของ {settings.orgName || "EnCo"}
             เพื่อประโยชน์ในการจัดหาเชิงพาณิชย์ด้วยวิธีประมูล โดยมีวัตถุประสงค์เพื่อให้มั่นใจว่า
-            ภายใต้กระบวนการกำหนดกลุ่มงาน และขั้นตอน หรือวิธีการในการคัดเลือกผู้ค้าเพื่อขึ้นทะเบียนผู้ค้ากับ EnCo นั้น
+            ภายใต้กระบวนการกำหนดกลุ่มงาน และขั้นตอน หรือวิธีการในการคัดเลือกผู้ค้าเพื่อขึ้นทะเบียนผู้ค้ากับ {settings.orgName || "EnCo"} นั้น
             จะได้ผู้ค้าที่มีประสิทธิภาพ สามารถส่งมอบสินค้า หรือบริการได้ตรงกับความต้องการขององค์กร
-            และส่งเสริมความเป็นพันธมิตร (Partnership) กับ EnCo อย่างยั่งยืน
+            และส่งเสริมความเป็นพันธมิตร (Partnership) กับ {settings.orgName || "EnCo"} อย่างยั่งยืน
           </p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button className="btn" style={{ background: "#fff", color: "var(--primary-ink)" }}
@@ -250,17 +250,17 @@ function VendorLanding({ goto }) {
             สอบถามข้อมูลเพิ่มเติม
           </h3>
           <p style={{ margin: "2px 0 0", color: "var(--text-2)", fontSize: 13 }}>
-            ติดต่อฝ่ายจัดซื้อ EnCo สำหรับข้อมูลเกี่ยวกับการขึ้นทะเบียนคู่ค้า
+            ติดต่อฝ่ายจัดซื้อ {settings.orgName || "EnCo"} สำหรับข้อมูลเกี่ยวกับการขึ้นทะเบียนคู่ค้า
           </p>
         </div>
         <div style={{ display: "flex", gap: 24, fontSize: 13 }}>
           <div>
             <div style={{ fontSize: 11.5, color: "var(--text-3)" }}>โทรศัพท์</div>
-            <div className="mono" style={{ fontWeight: 500 }}>02-123-4567 ต่อ 8801</div>
+            <div className="mono" style={{ fontWeight: 500 }}>{settings.contactPhone || "02-123-4567 ต่อ 8801"}</div>
           </div>
           <div>
             <div style={{ fontSize: 11.5, color: "var(--text-3)" }}>อีเมล</div>
-            <div className="mono" style={{ fontWeight: 500 }}>procurement.enco@energycomplex.co.th</div>
+            <div className="mono" style={{ fontWeight: 500 }}>{settings.contactEmail || "procurement.enco@energycomplex.co.th"}</div>
           </div>
         </div>
       </div>

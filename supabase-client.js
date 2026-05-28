@@ -604,6 +604,50 @@ async function deleteAvlDocumentInDb(id) {
   }
 }
 
+// ─── Site Settings Functions ───
+
+const DEFAULT_SETTINGS = {
+  orgName:       "EnCo",
+  orgFullName:   "บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด",
+  portalSubtitle:"Vendor Portal",
+  contactEmail:  "procurement.enco@energycomplex.co.th",
+  contactPhone:  "02-123-4567 ต่อ 8801",
+  logoUrl:       "",
+  logoInitials:  "E",
+  siteTitle:     "EnCo Vendor Registration",
+  avlName:       "EnCo Approved Vendor List (AVL)",
+  heroTitle:     "ระบบขึ้นทะเบียนผู้ค้าของ EnCo",
+};
+
+async function getSiteSettingsFromDb() {
+  try {
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('data')
+      .eq('id', 1)
+      .single();
+    if (error) throw error;
+    return { ...DEFAULT_SETTINGS, ...(data?.data || {}) };
+  } catch (err) {
+    console.warn('⚠️ site_settings table not found, using defaults:', err.message);
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+async function updateSiteSettingsInDb(newSettings) {
+  try {
+    const { error } = await supabase
+      .from('site_settings')
+      .upsert({ id: 1, data: newSettings, updated_at: new Date() });
+    if (error) throw error;
+    console.log('✅ Site settings updated');
+    return true;
+  } catch (err) {
+    console.error('❌ Error updating site settings:', err);
+    throw err;
+  }
+}
+
 // Export functions
 Object.assign(window, {
   supabase,
@@ -629,4 +673,7 @@ Object.assign(window, {
   getAvlDocumentsFromDb,
   createAvlDocumentInDb,
   deleteAvlDocumentInDb,
+  DEFAULT_SETTINGS,
+  getSiteSettingsFromDb,
+  updateSiteSettingsInDb,
 });

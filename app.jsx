@@ -62,6 +62,8 @@ class AppErrorBoundary extends React.Component {
 
 // ── Admin Login Page (standalone full-page — accessed via #admin URL) ────────
 function AdminLoginPage({ onLogin }) {
+  const ctx = useData();
+  const orgName = ctx?.settings?.orgName || "EnCo";
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [err, setErr] = React.useState("");
@@ -103,7 +105,7 @@ function AdminLoginPage({ onLogin }) {
             STAFF PORTAL
           </div>
           <p style={{ margin: "12px 0 0", fontSize: 13.5, color: "var(--text-2)" }}>
-            เข้าสู่ระบบสำหรับเจ้าหน้าที่ EnCo เท่านั้น
+            เข้าสู่ระบบสำหรับเจ้าหน้าที่ {orgName} เท่านั้น
           </p>
         </div>
 
@@ -157,7 +159,7 @@ function AdminLoginPage({ onLogin }) {
 
       {/* Footer */}
       <p style={{ marginTop: 28, fontSize: 12, color: "var(--text-3)", textAlign: "center" }}>
-        EnCo Vendor Registration System · v2.6.0
+        {orgName} Vendor Registration System · v2.6.0
       </p>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
@@ -215,11 +217,12 @@ function App() {
     } catch (_e) {}
   }, [adminUser]);
 
-  // Fetch data from Supabase (includes groups, announcements, submissions, categories)
+  // Fetch data from Supabase (includes groups, announcements, submissions, categories, settings)
   const {
     submissions, setSubmissions,
     announcements, setAnnouncements,
     categories, setCategories,
+    settings, setSettings,
     loading, error
   } = useSupabaseData();
 
@@ -236,6 +239,7 @@ function App() {
     announcements, setAnnouncements,
     submissions, setSubmissions,
     categories, setCategories,
+    settings, setSettings,
     loading, error
   };
 
@@ -279,6 +283,7 @@ function App() {
     { id: "admin-groups",        label: "กลุ่มงาน",                 icon: "sparkle" },
     { id: "admin-vendors",       label: "ทะเบียนผู้ค้า",            icon: "building" },
     { id: "admin-users",         label: "ผู้ใช้งานระบบ",          icon: "users" },
+    { id: "admin-settings",      label: "การตั้งค่า",              icon: "settings" },
   ];
   const nav = isAdmin ? adminNav : vendorNav;
 
@@ -356,7 +361,7 @@ function App() {
             ) : (
               // Vendor view: no admin login button — admin access is via #admin URL only
               <div style={{ fontSize: 11.5, color: "var(--text-3)", padding: "0 4px" }}>
-                <div style={{ marginBottom: 2 }}>EnCo Vendor Portal</div>
+                <div style={{ marginBottom: 2 }}>{dataValue.settings?.orgName || "EnCo"} Vendor Portal</div>
                 <div className="mono">v2.6.0 · © 2569</div>
               </div>
             )}
@@ -398,6 +403,7 @@ function App() {
           {page === "admin-groups"        && <AdminGroups />}
           {page === "admin-vendors"       && <AdminVendorRegistry goto={goto} />}
           {page === "admin-users"         && <AdminUsersPlaceholder />}
+          {page === "admin-settings"      && <AdminSettings />}
         </main>
       </div>
 
@@ -447,6 +453,7 @@ const Breadcrumb = ({ page, detailId, role, goto }) => {
     "admin-groups":        ["Admin", "กลุ่มงาน"],
     "admin-vendors":       ["Admin", "ทะเบียนผู้ค้า"],
     "admin-users":         ["Admin", "ผู้ใช้งานระบบ"],
+    "admin-settings":      ["Admin", "การตั้งค่าระบบ"],
   };
   const parts = titles[page] || [""];
   return (

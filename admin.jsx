@@ -1448,4 +1448,225 @@ const GroupEditor = ({ id, onClose, onSave }) => {
   );
 };
 
-Object.assign(window, { AdminDashboard, AdminSubmissions, AdminDetail, AdminAnnouncements, AdminGroups });
+// ─── Admin Settings Page ─────────────────────────────────────────────────────
+function AdminSettings() {
+  const { settings = {}, setSettings } = useData();
+  const [form, setForm] = React.useState(() => ({ ...settings }));
+  const [saving, setSaving] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const [toast, showToast] = useToast();
+  const logoRef = React.useRef();
+
+  // Sync form when settings first arrive from DB (on slow connections)
+  const settingsLoaded = React.useRef(false);
+  React.useEffect(() => {
+    if (!settingsLoaded.current && settings && Object.keys(settings).length > 0) {
+      settingsLoaded.current = true;
+      setForm({ ...settings });
+    }
+  }, [settings]);
+
+  const ff = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await window.updateSiteSettingsInDb(form);
+      setSettings({ ...form });
+      showToast("บันทึกการตั้งค่าเรียบร้อยแล้ว", "success");
+    } catch (e) {
+      showToast("บันทึกไม่สำเร็จ: " + (e.message || e), "danger");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLogoFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setUploading(true);
+    try {
+      const result = await window.uploadFileToStorage(file, "logos");
+      setForm(f => ({ ...f, logoUrl: result.url }));
+      showToast("อัปโหลดโลโก้เรียบร้อย", "success");
+    } catch (err) {
+      showToast("อัปโหลดไม่สำเร็จ: " + (err.message || err), "danger");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="fade-in">
+      <SectionHeader
+        eyebrow="Admin · System"
+        title="การตั้งค่าระบบ"
+        desc="ปรับแต่งชื่อองค์กร โลโก้ และข้อมูลติดต่อที่แสดงบนเว็บไซต์"
+        action={
+          <button className="btn btn-primary btn-sm" onClick={save} disabled={saving || uploading}>
+            {saving
+              ? <><span style={{ display: "inline-block", width: 13, height: 13,
+                  border: "2px solid rgba(255,255,255,.4)", borderTopColor: "#fff",
+                  borderRadius: "50%", animation: "spin .7s linear infinite" }} /> กำลังบันทึก...</>
+              : <><Icon name="check" size={14} /> บันทึกการตั้งค่า</>
+            }
+          </button>
+        }
+      />
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 860 }}>
+
+        {/* ─── Logo & Org Name ─── */}
+        <div className="card" style={{ padding: 24 }}>
+          <h3 style={{ margin: "0 0 20px", fontSize: 15, fontWeight: 600 }}>โลโก้และชื่อองค์กร</h3>
+          <div style={{ display: "flex", gap: 28, alignItems: "flex-start", flexWrap: "wrap" }}>
+
+            {/* Logo preview */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, flexShrink: 0 }}>
+              <div style={{
+                width: 80, height: 80, borderRadius: 14,
+                background: form.logoUrl ? "var(--surface-2)" : "var(--primary)",
+                display: "grid", placeItems: "center",
+                color: "#fff", fontWeight: 700, fontSize: 30,
+                fontFamily: "var(--font-en)",
+                boxShadow: "var(--shadow-sm)",
+                overflow: "hidden",
+                border: "1px solid var(--line)",
+              }}>
+                {form.logoUrl
+                  ? <img src={form.logoUrl} alt="Logo preview"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : (form.logoInitials || (form.orgName || "E").slice(0, 1))
+                }
+              </div>
+              <input ref={logoRef} type="file" accept="image/*"
+                style={{ display: "none" }} onChange={handleLogoFile} />
+              <button className="btn btn-ghost btn-sm"
+                onClick={() => logoRef.current?.click()} disabled={uploading}
+                style={{ fontSize: 12 }}>
+                {uploading
+                  ? <><span style={{ display: "inline-block", width: 11, height: 11,
+                      border: "2px solid var(--text-3)", borderTopColor: "transparent",
+                      borderRadius: "50%", animation: "spin .7s linear infinite" }} /> กำลังอัปโหลด...</>
+                  : <><Icon name="upload" size={12} /> อัปโหลดโลโก้</>
+                }
+              </button>
+              {form.logoUrl && (
+                <button className="btn btn-ghost btn-sm"
+                  style={{ color: "var(--danger)", fontSize: 12 }}
+                  onClick={() => setForm(f => ({ ...f, logoUrl: "" }))}>
+                  <Icon name="trash" size={12} /> ลบโลโก้
+                </button>
+              )}
+            </div>
+
+            {/* Name fields */}
+            <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label className="label" style={{ marginBottom: 6 }}>
+                    ชื่อย่อองค์กร <span className="req">*</span>
+                  </label>
+                  <input className="input" value={form.orgName || ""} onChange={ff("orgName")}
+                    placeholder="เช่น EnCo" style={{ width: "100%" }} />
+                  <div className="help" style={{ marginTop: 4 }}>แสดงบน Sidebar, หัวข้อ, และหน้า Login</div>
+                </div>
+                <div>
+                  <label className="label" style={{ marginBottom: 6 }}>ตัวอักษรโลโก้ (fallback)</label>
+                  <input className="input" value={form.logoInitials || ""} onChange={ff("logoInitials")}
+                    placeholder="E" maxLength={3} style={{ width: "100%" }} />
+                  <div className="help" style={{ marginTop: 4 }}>1–3 ตัว แสดงเมื่อไม่มีรูปโลโก้</div>
+                </div>
+              </div>
+              <div>
+                <label className="label" style={{ marginBottom: 6 }}>ชื่อเต็มองค์กร</label>
+                <input className="input" value={form.orgFullName || ""} onChange={ff("orgFullName")}
+                  placeholder="บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด" style={{ width: "100%" }} />
+                <div className="help" style={{ marginTop: 4 }}>แสดงในย่อหน้าแนะนำบนหน้าหลัก</div>
+              </div>
+              <div>
+                <label className="label" style={{ marginBottom: 6 }}>คำบรรยายใต้โลโก้ (Sidebar subtitle)</label>
+                <input className="input" value={form.portalSubtitle || ""} onChange={ff("portalSubtitle")}
+                  placeholder="Vendor Portal" style={{ width: "100%" }} />
+              </div>
+              {form.logoUrl && (
+                <div>
+                  <label className="label" style={{ marginBottom: 6 }}>URL โลโก้ (แก้ไขตรงๆ)</label>
+                  <input className="input" value={form.logoUrl || ""} onChange={ff("logoUrl")}
+                    placeholder="https://..." style={{ width: "100%" }} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── Page Content ─── */}
+        <div className="card" style={{ padding: 24 }}>
+          <h3 style={{ margin: "0 0 20px", fontSize: 15, fontWeight: 600 }}>ข้อความบนเว็บไซต์</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label className="label" style={{ marginBottom: 6 }}>หัวข้อ Hero (banner หน้าหลัก)</label>
+              <input className="input" value={form.heroTitle || ""} onChange={ff("heroTitle")}
+                placeholder="ระบบขึ้นทะเบียนผู้ค้าของ EnCo" style={{ width: "100%" }} />
+            </div>
+            <div>
+              <label className="label" style={{ marginBottom: 6 }}>ชื่อ Badge AVL (บนหน้าหลัก)</label>
+              <input className="input" value={form.avlName || ""} onChange={ff("avlName")}
+                placeholder="EnCo Approved Vendor List (AVL)" style={{ width: "100%" }} />
+              <div className="help" style={{ marginTop: 4 }}>แสดงใน Badge สีขาวโปร่งแสงด้านบน Hero</div>
+            </div>
+            <div>
+              <label className="label" style={{ marginBottom: 6 }}>ชื่อเว็บไซต์ (แท็บ browser)</label>
+              <input className="input" value={form.siteTitle || ""} onChange={ff("siteTitle")}
+                placeholder="EnCo Vendor Registration" style={{ width: "100%" }} />
+            </div>
+          </div>
+        </div>
+
+        {/* ─── Contact Info ─── */}
+        <div className="card" style={{ padding: 24 }}>
+          <h3 style={{ margin: "0 0 20px", fontSize: 15, fontWeight: 600 }}>ข้อมูลติดต่อ</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div>
+              <label className="label" style={{ marginBottom: 6 }}>โทรศัพท์</label>
+              <input className="input" value={form.contactPhone || ""} onChange={ff("contactPhone")}
+                placeholder="02-123-4567 ต่อ 8801" style={{ width: "100%" }} />
+              <div className="help" style={{ marginTop: 4 }}>แสดงในส่วน "สอบถามข้อมูลเพิ่มเติม" ด้านล่างหน้าหลัก</div>
+            </div>
+            <div>
+              <label className="label" style={{ marginBottom: 6 }}>อีเมล</label>
+              <input className="input" type="email" value={form.contactEmail || ""} onChange={ff("contactEmail")}
+                placeholder="procurement@company.co.th" style={{ width: "100%" }} />
+            </div>
+          </div>
+        </div>
+
+        {/* ─── DB setup notice ─── */}
+        <div style={{
+          padding: "14px 18px", background: "var(--warn-soft)",
+          border: "1px solid oklch(85% 0.10 70)", borderRadius: 10,
+          fontSize: 13, color: "oklch(42% 0.12 70)",
+          display: "flex", gap: 10, alignItems: "flex-start",
+        }}>
+          <span style={{ flexShrink: 0 }}>⚠️</span>
+          <div>
+            การตั้งค่าเหล่านี้ต้องมีตาราง{" "}
+            <code style={{ fontFamily: "var(--font-mono)", fontSize: 12,
+              background: "rgba(0,0,0,.06)", padding: "1px 5px", borderRadius: 4 }}>
+              site_settings
+            </code>{" "}
+            ใน Supabase ก่อน หากยังไม่มีกรุณาสร้างโดยรัน SQL ที่หน้า{" "}
+            <b>Supabase → SQL Editor</b> (ดูเอกสารสำหรับ SQL ที่ต้องรัน)
+          </div>
+        </div>
+
+      </div>
+
+      <Toast toast={toast} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+Object.assign(window, { AdminDashboard, AdminSubmissions, AdminDetail, AdminAnnouncements, AdminGroups, AdminSettings });
