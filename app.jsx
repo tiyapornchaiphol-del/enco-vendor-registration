@@ -475,12 +475,36 @@ const Breadcrumb = ({ page, detailId, role, goto }) => {
 function VendorRegistry({ goto }) {
   const [docs, setDocs] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [dlId, setDlId] = React.useState(null); // id ที่กำลังโหลดอยู่
 
   const fmtDate = (str) => {
     if (!str) return "—";
     const d = new Date(str);
     if (isNaN(d.getTime())) return str;
     return d.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
+  };
+
+  // Force-download ผ่าน fetch → blob เพื่อตั้งชื่อไฟล์เองและบังคับโหลด (ไม่เปิดแท็บ)
+  const handleDownload = async (doc) => {
+    if (dlId) return;
+    setDlId(doc.id);
+    try {
+      const res = await fetch(doc.url);
+      if (!res.ok) throw new Error("fetch failed");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = doc.name; // ชื่อไฟล์ต้นฉบับ
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (_) {
+      window.open(doc.url, "_blank"); // fallback เปิดแท็บถ้า fetch ล้มเหลว
+    } finally {
+      setDlId(null);
+    }
   };
 
   React.useEffect(() => {
@@ -556,14 +580,22 @@ function VendorRegistry({ goto }) {
               {/* Actions */}
               <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                 <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                  className="btn btn-ghost btn-sm">
+                  className="btn btn-ghost btn-sm" title={doc.name}>
                   <Icon name="eye" size={14} /> เปิดดู
                 </a>
-                <a href={doc.url} download={doc.name}
-                  className="btn btn-soft btn-sm">
-                  <Icon name="download" size={14} /> ดาวน์โหลด
-                </a>
+                <button className="btn btn-soft btn-sm"
+                  onClick={() => handleDownload(doc)}
+                  disabled={!!dlId}
+                  title={`ดาวน์โหลด ${doc.name}`}>
+                  {dlId === doc.id
+                    ? <><span style={{ display: "inline-block", width: 13, height: 13,
+                        border: "2px solid var(--primary-ink)", borderTopColor: "transparent",
+                        borderRadius: "50%", animation: "spin .7s linear infinite" }} /> กำลังโหลด...</>
+                    : <><Icon name="download" size={14} /> ดาวน์โหลด</>
+                  }
+                </button>
               </div>
+              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
             </div>
           ))}
         </div>
