@@ -1642,24 +1642,6 @@ function AdminSettings() {
           </div>
         </div>
 
-        {/* ─── DB setup notice ─── */}
-        <div style={{
-          padding: "14px 18px", background: "var(--warn-soft)",
-          border: "1px solid oklch(85% 0.10 70)", borderRadius: 10,
-          fontSize: 13, color: "oklch(42% 0.12 70)",
-          display: "flex", gap: 10, alignItems: "flex-start",
-        }}>
-          <span style={{ flexShrink: 0 }}>⚠️</span>
-          <div>
-            การตั้งค่าเหล่านี้ต้องมีตาราง{" "}
-            <code style={{ fontFamily: "var(--font-mono)", fontSize: 12,
-              background: "rgba(0,0,0,.06)", padding: "1px 5px", borderRadius: 4 }}>
-              site_settings
-            </code>{" "}
-            ใน Supabase ก่อน หากยังไม่มีกรุณาสร้างโดยรัน SQL ที่หน้า{" "}
-            <b>Supabase → SQL Editor</b> (ดูเอกสารสำหรับ SQL ที่ต้องรัน)
-          </div>
-        </div>
 
       </div>
 
