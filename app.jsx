@@ -166,6 +166,25 @@ function AdminLoginPage({ onLogin }) {
   );
 }
 
+// ── Session config ────────────────────────────────────────────────────────────
+const SESSION_MS = 8 * 60 * 60 * 1000; // หมดอายุหลัง 8 ชั่วโมงนับจากเวลา login
+
+function loadSavedAdmin() {
+  try {
+    const raw = localStorage.getItem("enco_admin_user");
+    if (!raw) return null;
+    const u = JSON.parse(raw);
+    // ตรวจสอบ session หมดอายุ
+    if (!u.loginAt || Date.now() - u.loginAt > SESSION_MS) {
+      localStorage.removeItem("enco_admin_user");
+      localStorage.removeItem("enco_page");
+      console.log("⏰ Admin session หมดอายุ — กรุณา login ใหม่");
+      return null;
+    }
+    return u;
+  } catch (_) { return null; }
+}
+
 function App() {
   const [t, setTweak] = useTweaks(window.TWEAK_DEFAULTS);
 
@@ -174,25 +193,18 @@ function App() {
   // Vendor portal has zero indication that an admin area exists
   const [adminRoute] = React.useState(() => window.location.hash === "#admin");
 
-  const [adminUser, setAdminUser] = React.useState(() => {
-    // Restore admin session — only valid if user had come through #admin route
-    try {
-      const saved = localStorage.getItem("enco_admin_user");
-      return saved ? JSON.parse(saved) : null;
-    } catch (_e) { return null; }
-  });
+  const [adminUser, setAdminUser] = React.useState(loadSavedAdmin);
   const isAdmin = adminUser !== null;
 
   // Restore last page from localStorage — vendor always starts at landing,
   // only admin sessions restore their last page.
   const [page, setPage] = React.useState(() => {
-    try {
-      const isAdminSaved = !!localStorage.getItem("enco_admin_user");
-      if (!isAdminSaved) return "landing"; // vendor ใหม่ทุกครั้ง
-      const savedPage = localStorage.getItem("enco_page") || "admin-dashboard";
-      if (savedPage === "track" || !savedPage.startsWith("admin")) return "admin-dashboard";
-      return savedPage;
-    } catch (_e) { return "landing"; }
+    // ถ้าไม่มี session ที่ valid อยู่ → vendor เสมอ
+    const saved = loadSavedAdmin();
+    if (!saved) return "landing";
+    const savedPage = localStorage.getItem("enco_page") || "admin-dashboard";
+    if (savedPage === "track" || !savedPage.startsWith("admin")) return "admin-dashboard";
+    return savedPage;
   });
   const [detailId, setDetailId] = React.useState(() => {
     try { return localStorage.getItem("enco_detail_id") || null; } catch (_e) { return null; }
@@ -214,6 +226,20 @@ function App() {
       if (adminUser) localStorage.setItem("enco_admin_user", JSON.stringify(adminUser));
       else localStorage.removeItem("enco_admin_user");
     } catch (_e) {}
+  }, [adminUser]);
+
+  // ── ตรวจสอบ session หมดอายุระหว่างใช้งาน (ทุก 5 นาที) ─────────────────────
+  React.useEffect(() => {
+    if (!adminUser) return;
+    const id = setInterval(() => {
+      if (!adminUser?.loginAt || Date.now() - adminUser.loginAt > SESSION_MS) {
+        console.log("⏰ Admin session หมดอายุระหว่างใช้งาน");
+        localStorage.removeItem("enco_admin_user");
+        localStorage.removeItem("enco_page");
+        setAdminUser(null);
+      }
+    }, 5 * 60 * 1000);
+    return () => clearInterval(id);
   }, [adminUser]);
 
   // Fetch data from Supabase (includes groups, announcements, submissions, categories, settings)
@@ -294,7 +320,7 @@ function App() {
       <DataContext.Provider value={dataValue}>
         <div data-density={t.density} data-dark={t.dark ? "true" : "false"}>
           <AdminLoginPage onLogin={(account) => {
-            setAdminUser(account);
+            setAdminUser({ ...account, loginAt: Date.now() });
             setPage("admin-dashboard");
           }} />
         </div>
