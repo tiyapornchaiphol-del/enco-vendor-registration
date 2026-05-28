@@ -330,7 +330,7 @@ async function getAllAdmins() {
   try {
     const { data, error } = await supabase
       .from('admin_profiles')
-      .select('id, name, role, is_active, created_at')
+      .select('id, email, name, role, is_active, created_at')
       .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];

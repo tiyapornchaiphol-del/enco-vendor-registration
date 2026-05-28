@@ -426,7 +426,7 @@ function App() {
           {page === "admin-announcements" && <AdminAnnouncements goto={goto} />}
           {page === "admin-groups"        && <AdminGroups />}
           {page === "admin-vendors"       && <AdminVendorRegistry goto={goto} />}
-          {page === "admin-users"         && <AdminUsersPlaceholder />}
+          {page === "admin-users"         && <AdminUsers />}
           {page === "admin-settings"      && <AdminSettings />}
         </main>
       </div>
@@ -866,58 +866,129 @@ const PERM_LABELS = {
   "manage-admins":         "จัดการ Admin",
 };
 
-const BLANK_USER = { name: "", email: "", role: "Reviewer", active: true, password: "", confirmPassword: "" };
+// ─── Password strength validator ──────────────────────────────────────────────
+function validatePassword(pwd) {
+  const checks = {
+    length:  pwd.length >= 8,
+    upper:   /[A-Z]/.test(pwd),
+    lower:   /[a-z]/.test(pwd),
+    number:  /[0-9]/.test(pwd),
+    special: /[^A-Za-z0-9]/.test(pwd),
+  };
+  const passed = Object.values(checks).filter(Boolean).length;
+  return { checks, passed, total: 5, ok: passed === 5 };
+}
 
-function AdminUsersPlaceholder() {
-  const [users, setUsers] = React.useState([
-    { id: 1, name: "Administrator", email: "admin@enco.co.th", role: "Super Admin", active: true, lastSeen: "วันนี้" },
-  ]);
-  const [editing, setEditing] = React.useState(null); // null | user obj
-  const [isNew, setIsNew] = React.useState(false);
-  const [form, setForm] = React.useState(BLANK_USER);
-  const [formErr, setFormErr] = React.useState("");
-  const [resetPwdUser, setResetPwdUser] = React.useState(null);
-  const [resetPwdForm, setResetPwdForm] = React.useState({ password: "", confirm: "" });
-  const [resetPwdErr, setResetPwdErr] = React.useState("");
+function PasswordStrengthBar({ password }) {
+  const v = validatePassword(password || "");
+  if (!password) return null;
+  const colors = ["var(--danger)","var(--danger)","var(--warn)","oklch(65% 0.14 90)","var(--success)"];
+  const labels  = ["อ่อนมาก","อ่อน","พอใช้","ดี","แข็งแรง"];
+  const color = colors[Math.min(v.passed - 1, 4)] || "var(--line)";
+  const label = v.passed === 0 ? "" : labels[Math.min(v.passed - 1, 4)];
+  const checkLabels = { length:"8+ ตัว", upper:"A-Z", lower:"a-z", number:"0-9", special:"!@#$" };
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ height: 4, background: "var(--line)", borderRadius: 4, overflow: "hidden" }}>
+        <div style={{ height:"100%", width:`${(v.passed/v.total)*100}%`, background: color, borderRadius:4, transition:"all .3s" }} />
+      </div>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:"5px 14px", marginTop:7 }}>
+        {Object.entries(v.checks).map(([k, ok]) => (
+          <span key={k} style={{ fontSize:11.5, color: ok ? "var(--success)" : "var(--text-3)", display:"flex", alignItems:"center", gap:3 }}>
+            <b>{ok ? "✓" : "○"}</b> {checkLabels[k]}
+          </span>
+        ))}
+        {label && <span style={{ fontSize:11.5, fontWeight:600, color, marginLeft:"auto" }}>{label}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Admin Users (connected to Supabase) ──────────────────────────────────────
+function AdminUsers() {
+  const [users, setUsers]         = React.useState([]);
+  const [loading, setLoading]     = React.useState(true);
+  const [editing, setEditing]     = React.useState(null); // null | user obj
+  const [isNew, setIsNew]         = React.useState(false);
+  const [form, setForm]           = React.useState({});
+  const [saving, setSaving]       = React.useState(false);
+  const [formErr, setFormErr]     = React.useState("");
+  const [togglingId, setTogglingId]   = React.useState(null);
+  const [resettingId, setResettingId] = React.useState(null);
+  const [toast, showToast]        = useToast();
+
+  const loadUsers = () => {
+    setLoading(true);
+    window.getAllAdmins?.().then(d => { setUsers(d || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+  React.useEffect(loadUsers, []);
 
   const openAdd = () => {
-    setForm(BLANK_USER);
-    setIsNew(true);
-    setEditing({});
-    setFormErr("");
+    setForm({ uuid:"", email:"", name:"", role:"Reviewer" });
+    setIsNew(true); setEditing({}); setFormErr("");
   };
   const openEdit = (u) => {
-    setForm({ name: u.name, email: u.email, role: u.role, active: u.active });
-    setIsNew(false);
-    setEditing(u);
-    setFormErr("");
+    setForm({ name: u.name, role: u.role });
+    setIsNew(false); setEditing(u); setFormErr("");
   };
   const closeModal = () => { setEditing(null); setFormErr(""); };
 
-  const saveUser = () => {
-    if (!form.name.trim()) { setFormErr("กรุณากรอกชื่อ"); return; }
-    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      setFormErr("อีเมลไม่ถูกต้อง"); return;
-    }
-    if (isNew && users.find(u => u.email === form.email.trim())) {
-      setFormErr("อีเมลนี้มีในระบบแล้ว"); return;
-    }
-    if (isNew && (!form.password || form.password.length < 6)) {
-      setFormErr("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"); return;
-    }
-    if (isNew && form.password !== form.confirmPassword) {
-      setFormErr("รหัสผ่านไม่ตรงกัน"); return;
-    }
+  const saveUser = async () => {
+    if (!form.name?.trim()) { setFormErr("กรุณากรอกชื่อ-นามสกุล"); return; }
     if (isNew) {
-      setUsers([...users, { id: Date.now(), ...form, email: form.email.trim(), lastSeen: "ยังไม่เคยเข้า" }]);
-    } else {
-      setUsers(users.map(u => u.id === editing.id ? { ...u, ...form, email: form.email.trim() } : u));
+      const uuidRx = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!form.uuid?.trim()) { setFormErr("กรุณากรอก User ID (UUID) จาก Supabase Dashboard"); return; }
+      if (!uuidRx.test(form.uuid.trim())) { setFormErr("UUID ไม่ถูกต้อง — รูปแบบ: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"); return; }
+      if (!form.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+        setFormErr("กรุณากรอกอีเมลให้ถูกต้อง"); return;
+      }
     }
-    closeModal();
+    setSaving(true);
+    try {
+      if (isNew) {
+        const { data, error } = await window.supabase
+          .from('admin_profiles')
+          .insert([{ id: form.uuid.trim(), email: form.email.trim().toLowerCase(), name: form.name.trim(), role: form.role, is_active: true }])
+          .select().single();
+        if (error) throw error;
+        setUsers([data, ...users]);
+        showToast("เพิ่มผู้ใช้สำเร็จ");
+      } else {
+        await window.updateAdmin(editing.id, { name: form.name.trim(), role: form.role });
+        setUsers(users.map(u => u.id === editing.id ? { ...u, name: form.name.trim(), role: form.role } : u));
+        showToast("บันทึกสำเร็จ");
+      }
+      closeModal();
+    } catch (err) {
+      const msg = err?.message || "เกิดข้อผิดพลาด";
+      setFormErr(msg.includes("duplicate") || msg.includes("unique") ? "UUID นี้มีในระบบแล้ว — ตรวจสอบอีกครั้ง" : msg);
+    } finally { setSaving(false); }
   };
 
-  const toggleActive = (id) => setUsers(users.map(u => u.id === id ? { ...u, active: !u.active } : u));
-  const deleteUser = (id) => { if (confirm("ลบผู้ใช้นี้?")) setUsers(users.filter(u => u.id !== id)); };
+  const toggleActive = async (u) => {
+    setTogglingId(u.id);
+    const next = !u.is_active;
+    await window.updateAdmin(u.id, { is_active: next });
+    setUsers(users.map(x => x.id === u.id ? { ...x, is_active: next } : x));
+    showToast(next ? "เปิดใช้งานแล้ว" : "ระงับผู้ใช้แล้ว");
+    setTogglingId(null);
+  };
+
+  const sendResetEmail = async (u) => {
+    if (!u.email) { showToast("ผู้ใช้นี้ไม่มีอีเมลในระบบ", "error"); return; }
+    setResettingId(u.id);
+    try {
+      const { error } = await window.supabase.auth.resetPasswordForEmail(u.email, {
+        redirectTo: window.location.origin + window.location.pathname + "#admin",
+      });
+      if (error) throw error;
+      showToast(`ส่งลิงก์รีเซ็ตรหัสผ่านไปที่ ${u.email} แล้ว`);
+    } catch (err) {
+      showToast("ส่งอีเมลไม่สำเร็จ: " + (err?.message || ""), "error");
+    }
+    setResettingId(null);
+  };
 
   const rolePerms = ROLE_OPTIONS.find(r => r.value === form.role)?.perms || [];
 
@@ -929,142 +1000,126 @@ function AdminUsersPlaceholder() {
         desc="จัดการบัญชีเจ้าหน้าที่และสิทธิ์การเข้าถึง"
         action={<button className="btn btn-primary btn-sm" onClick={openAdd}><Icon name="plus" size={14} /> เพิ่มผู้ใช้</button>} />
 
-      <div className="card" style={{ overflow: "hidden" }}>
-        <table className="tbl">
-          <thead>
-            <tr><th>ชื่อ</th><th>อีเมล</th><th>บทบาท</th><th>เข้าใช้ล่าสุด</th><th>สถานะ</th><th></th></tr>
-          </thead>
-          <tbody>
-            {users.map(u => (
-              <tr key={u.id}>
-                <td>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <Avatar name={u.name} size={32} />
-                    <span style={{ fontWeight: 500, fontSize: 13.5, color: u.active ? "var(--text)" : "var(--text-3)" }}>{u.name}</span>
-                  </div>
-                </td>
-                <td className="mono" style={{ fontSize: 12.5, color: "var(--text-2)" }}>{u.email}</td>
-                <td>
-                  <span className="pill" style={{ background: "var(--primary-soft)", color: "var(--primary-ink)" }}>{u.role}</span>
-                </td>
-                <td style={{ fontSize: 13, color: "var(--text-2)" }}>{u.lastSeen}</td>
-                <td>
-                  <span className="pill" style={{
-                    background: u.active ? "var(--success-soft)" : "var(--line)",
-                    color: u.active ? "oklch(38% 0.11 155)" : "var(--text-3)",
-                  }}>
-                    <span className="pill-dot" /> {u.active ? "Active" : "Inactive"}
-                  </span>
-                </td>
-                <td>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button className="btn btn-ghost btn-sm btn-icon" title="แก้ไข" onClick={() => openEdit(u)}>
-                      <Icon name="edit" size={14} />
-                    </button>
-                    <button className="btn btn-ghost btn-sm btn-icon" title="รีเซ็ตรหัสผ่าน"
-                      onClick={() => { setResetPwdUser(u); setResetPwdForm({ password: "", confirm: "" }); setResetPwdErr(""); }}
-                      style={{ fontSize: 13 }}>🔑</button>
-                    <button className="btn btn-ghost btn-sm btn-icon" title={u.active ? "ระงับ" : "เปิดใช้"}
-                      onClick={() => toggleActive(u.id)}
-                      style={{ color: u.active ? "var(--warn)" : "var(--success)" }}>
-                      <Icon name={u.active ? "x" : "check"} size={14} />
-                    </button>
-                    <button className="btn btn-ghost btn-sm btn-icon" title="ลบ"
-                      onClick={() => deleteUser(u.id)} style={{ color: "var(--danger)" }}>
-                      <Icon name="trash" size={14} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Guide banner */}
+      <div style={{ padding:"12px 16px", background:"var(--primary-soft)", border:"1px solid var(--primary-border)",
+        borderRadius:10, marginBottom:20, fontSize:13, color:"var(--primary-ink)", lineHeight:1.75 }}>
+        <b>📋 วิธีเพิ่มผู้ใช้:</b> สร้างบัญชีใน <b>Supabase Dashboard → Authentication → Users</b> พร้อมรหัสผ่านที่แข็งแรง
+        แล้วนำ UUID มากรอกที่ปุ่ม "เพิ่มผู้ใช้" &nbsp;·&nbsp; รีเซ็ตรหัสผ่านผ่านปุ่ม 🔑 (ส่งลิงก์ทางอีเมล)
       </div>
 
-      {/* Password reset modal */}
-      {resetPwdUser !== null && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 1000,
-          background: "rgba(0,0,0,.4)", backdropFilter: "blur(2px)",
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
-          onClick={() => setResetPwdUser(null)}>
-          <div className="card" style={{ width: "100%", maxWidth: 420, padding: 28 }}
-            onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-              marginBottom: 20 }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>รีเซ็ตรหัสผ่าน</h3>
-              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setResetPwdUser(null)}>
-                <Icon name="x" size={16} />
-              </button>
-            </div>
-            <div style={{ padding: "10px 14px", background: "var(--primary-soft)", borderRadius: 8,
-              fontSize: 13, color: "var(--primary-ink)", marginBottom: 18 }}>
-              ตั้งรหัสผ่านใหม่สำหรับ <b>{resetPwdUser.name}</b>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)",
-                  display: "block", marginBottom: 6 }}>
-                  รหัสผ่านใหม่ <span style={{ color: "var(--danger)" }}>*</span>
-                </label>
-                <input className="input" type="password" value={resetPwdForm.password}
-                  onChange={e => setResetPwdForm({ ...resetPwdForm, password: e.target.value })}
-                  placeholder="อย่างน้อย 6 ตัวอักษร" style={{ width: "100%" }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)",
-                  display: "block", marginBottom: 6 }}>
-                  ยืนยันรหัสผ่านใหม่ <span style={{ color: "var(--danger)" }}>*</span>
-                </label>
-                <input className="input" type="password" value={resetPwdForm.confirm}
-                  onChange={e => setResetPwdForm({ ...resetPwdForm, confirm: e.target.value })}
-                  placeholder="กรอกรหัสผ่านอีกครั้ง" style={{ width: "100%" }} />
-              </div>
-              {resetPwdErr && (
-                <div style={{ padding: "10px 14px", background: "var(--danger-soft)",
-                  color: "oklch(42% 0.14 25)", borderRadius: 8, fontSize: 13 }}>
-                  ✕ {resetPwdErr}
-                </div>
-              )}
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
-                <button className="btn btn-ghost" onClick={() => setResetPwdUser(null)}>ยกเลิก</button>
-                <button className="btn btn-primary" onClick={() => {
-                  if (!resetPwdForm.password || resetPwdForm.password.length < 6) {
-                    setResetPwdErr("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"); return;
-                  }
-                  if (resetPwdForm.password !== resetPwdForm.confirm) {
-                    setResetPwdErr("รหัสผ่านไม่ตรงกัน"); return;
-                  }
-                  const name = resetPwdUser.name;
-                  setResetPwdUser(null);
-                  alert(`รีเซ็ตรหัสผ่านสำหรับ ${name} เรียบร้อยแล้ว`);
-                }}>
-                  <Icon name="check" size={14} /> บันทึกรหัสผ่าน
-                </button>
-              </div>
-            </div>
+      <div className="card" style={{ overflow:"hidden" }}>
+        {loading ? (
+          <div style={{ padding:40, textAlign:"center", color:"var(--text-3)" }}>กำลังโหลด...</div>
+        ) : users.length === 0 ? (
+          <div style={{ padding:48, textAlign:"center", color:"var(--text-3)" }}>
+            <div style={{ fontSize:36, marginBottom:12 }}>👤</div>
+            <div style={{ fontWeight:500, marginBottom:6 }}>ยังไม่มีผู้ใช้งาน</div>
+            <div style={{ fontSize:12 }}>กด "เพิ่มผู้ใช้" เพื่อเพิ่มเจ้าหน้าที่</div>
           </div>
-        </div>
-      )}
+        ) : (
+          <table className="tbl">
+            <thead>
+              <tr><th>ชื่อ / อีเมล</th><th>บทบาท</th><th>สถานะ</th><th>วันที่เพิ่ม</th><th></th></tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id}>
+                  <td>
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      <Avatar name={u.name} size={32} />
+                      <div>
+                        <div style={{ fontWeight:500, fontSize:13.5, color: u.is_active ? "var(--text)" : "var(--text-3)" }}>{u.name}</div>
+                        {u.email && <div className="mono" style={{ fontSize:11.5, color:"var(--text-3)" }}>{u.email}</div>}
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span className="pill" style={{ background:"var(--primary-soft)", color:"var(--primary-ink)" }}>{u.role}</span>
+                  </td>
+                  <td>
+                    <span className="pill" style={{
+                      background: u.is_active ? "var(--success-soft)" : "var(--line)",
+                      color: u.is_active ? "oklch(38% 0.11 155)" : "var(--text-3)",
+                    }}>
+                      <span className="pill-dot" /> {u.is_active ? "Active" : "Inactive"}
+                    </span>
+                  </td>
+                  <td style={{ fontSize:12.5, color:"var(--text-2)" }}>{fmtDate(u.created_at)}</td>
+                  <td>
+                    <div style={{ display:"flex", gap:4, justifyContent:"flex-end" }}>
+                      <button className="btn btn-ghost btn-sm btn-icon" title="แก้ไขชื่อ / บทบาท" onClick={() => openEdit(u)}>
+                        <Icon name="edit" size={14} />
+                      </button>
+                      <button className="btn btn-ghost btn-sm btn-icon" title="ส่งลิงก์รีเซ็ตรหัสผ่านทางอีเมล"
+                        disabled={resettingId === u.id} style={{ opacity: u.email ? 1 : 0.35 }}
+                        onClick={() => sendResetEmail(u)}>
+                        {resettingId === u.id ? "⏳" : "🔑"}
+                      </button>
+                      <button className="btn btn-ghost btn-sm btn-icon"
+                        title={u.is_active ? "ระงับการใช้งาน" : "เปิดใช้งาน"}
+                        disabled={togglingId === u.id}
+                        onClick={() => toggleActive(u)}
+                        style={{ color: u.is_active ? "var(--warn)" : "var(--success)" }}>
+                        <Icon name={u.is_active ? "x" : "check"} size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <Toast toast={toast} />
 
       {/* Add / Edit modal */}
       {editing !== null && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 999,
-          background: "rgba(0,0,0,.4)", backdropFilter: "blur(2px)",
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-        }} onClick={closeModal}>
-          <div className="card" style={{ width: "100%", maxWidth: 500, padding: 28 }}
+        <div style={{ position:"fixed", inset:0, zIndex:999,
+          background:"rgba(0,0,0,.4)", backdropFilter:"blur(2px)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}
+          onClick={closeModal}>
+          <div className="card" style={{ width:"100%", maxWidth:540, padding:28, maxHeight:"90vh", overflowY:"auto" }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>
-                {isNew ? "เพิ่มผู้ใช้ใหม่" : `แก้ไข — ${editing.name}`}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
+              <h3 style={{ margin:0, fontSize:17, fontWeight:600 }}>
+                {isNew ? "เพิ่มผู้ใช้งานระบบ" : `แก้ไข — ${editing.name}`}
               </h3>
-              <button className="btn btn-ghost btn-sm btn-icon" onClick={closeModal}>
-                <Icon name="x" size={16} />
-              </button>
+              <button className="btn btn-ghost btn-sm btn-icon" onClick={closeModal}><Icon name="x" size={16} /></button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              {/* New-user guide + UUID + email */}
+              {isNew && (<>
+                <div style={{ padding:"12px 14px", background:"var(--warn-soft)", borderRadius:8, fontSize:12.5, color:"oklch(45% 0.12 70)", lineHeight:1.75 }}>
+                  <b>⚠️ ก่อนกรอก UUID:</b><br/>
+                  1. ไป <b>Supabase → Authentication → Users</b><br/>
+                  2. กด <b>Add user → Create new user</b> → กรอก email + รหัสผ่าน → เปิด Auto Confirm<br/>
+                  3. คัดลอก <b>UUID</b> จากคอลัมน์ "ID" แล้วกลับมากรอกด้านล่าง
+                </div>
+                <div>
+                  <label className="label" style={{ marginBottom:6 }}>User ID (UUID) <span className="req">*</span></label>
+                  <input className="input mono" value={form.uuid || ""}
+                    onChange={e => setForm({ ...form, uuid: e.target.value.trim() })}
+                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style={{ width:"100%", letterSpacing:".04em" }} />
+                  <p className="help" style={{ marginTop:5 }}>คัดลอกจากคอลัมน์ "ID" ใน Supabase Auth Users</p>
+                </div>
+                <div>
+                  <label className="label" style={{ marginBottom:6 }}>อีเมล <span className="req">*</span></label>
+                  <input className="input" type="email" value={form.email || ""}
+                    onChange={e => setForm({ ...form, email: e.target.value })}
+                    placeholder="email@enco.co.th" style={{ width:"100%" }} />
+                  <p className="help" style={{ marginTop:5 }}>ต้องตรงกับอีเมลที่สร้างใน Supabase (ใช้ส่งลิงก์รีเซ็ตรหัสผ่าน)</p>
+                </div>
+              </>)}
+
+              <div>
+                <label className="label" style={{ marginBottom:6 }}>ชื่อ-นามสกุล <span className="req">*</span></label>
+                <input className="input" value={form.name || ""}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                  placeholder="ชื่อ นามสกุล" style={{ width:"100%" }} />
+              </div>
+
               <div>
                 <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)", display: "block", marginBottom: 6 }}>
                   ชื่อ-นามสกุล <span style={{ color: "var(--danger)" }}>*</span>
@@ -1082,54 +1137,21 @@ function AdminUsersPlaceholder() {
                   placeholder="email@enco.co.th" style={{ width: "100%" }} />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)", display: "block", marginBottom: 6 }}>
-                  บทบาท (Role)
-                </label>
-                <select className="select" value={form.role}
-                  onChange={e => setForm({ ...form, role: e.target.value })} style={{ width: "100%" }}>
+                <label className="label" style={{ marginBottom:6 }}>บทบาท (Role)</label>
+                <select className="select" value={form.role || "Reviewer"}
+                  onChange={e => setForm({ ...form, role: e.target.value })} style={{ width:"100%" }}>
                   {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </div>
 
-              {/* Password fields — new user only */}
-              {isNew && (
-                <>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)",
-                      display: "block", marginBottom: 6 }}>
-                      รหัสผ่าน <span style={{ color: "var(--danger)" }}>*</span>
-                    </label>
-                    <input className="input" type="password" value={form.password}
-                      onChange={e => setForm({ ...form, password: e.target.value })}
-                      placeholder="อย่างน้อย 6 ตัวอักษร" style={{ width: "100%" }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)",
-                      display: "block", marginBottom: 6 }}>
-                      ยืนยันรหัสผ่าน <span style={{ color: "var(--danger)" }}>*</span>
-                    </label>
-                    <input className="input" type="password" value={form.confirmPassword}
-                      onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
-                      placeholder="กรอกรหัสผ่านอีกครั้ง" style={{ width: "100%" }} />
-                  </div>
-                </>
-              )}
-
               {/* Permissions preview */}
-              <div style={{ padding: "12px 14px", background: "var(--surface-2)",
-                borderRadius: 10, border: "1px solid var(--line)" }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-3)",
-                  textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10,
-                  fontFamily: "var(--font-en)" }}>สิทธิ์ที่ได้รับ</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div style={{ padding:"12px 14px", background:"var(--surface-2)", borderRadius:10, border:"1px solid var(--line)" }}>
+                <div style={{ fontSize:12, fontWeight:600, color:"var(--text-3)", textTransform:"uppercase", letterSpacing:".06em", marginBottom:10, fontFamily:"var(--font-en)" }}>สิทธิ์ที่ได้รับ</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                   {Object.entries(PERM_LABELS).map(([key, label]) => {
                     const has = rolePerms.includes(key);
                     return (
-                      <span key={key} className="pill" style={{
-                        background: has ? "var(--success-soft)" : "var(--line)",
-                        color: has ? "oklch(38% 0.11 155)" : "var(--text-3)",
-                        fontSize: 12,
-                      }}>
+                      <span key={key} className="pill" style={{ background: has ? "var(--success-soft)" : "var(--line)", color: has ? "oklch(38% 0.11 155)" : "var(--text-3)", fontSize:12 }}>
                         {has ? "✓" : "✕"} {label}
                       </span>
                     );
@@ -1138,16 +1160,15 @@ function AdminUsersPlaceholder() {
               </div>
 
               {formErr && (
-                <div style={{ padding: "10px 14px", background: "var(--danger-soft)",
-                  color: "oklch(42% 0.14 25)", borderRadius: 8, fontSize: 13 }}>
+                <div style={{ padding:"10px 14px", background:"var(--danger-soft)", color:"oklch(42% 0.14 25)", borderRadius:8, fontSize:13 }}>
                   ✕ {formErr}
                 </div>
               )}
 
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
-                <button className="btn btn-ghost" onClick={closeModal}>ยกเลิก</button>
-                <button className="btn btn-primary" onClick={saveUser}>
-                  {isNew ? "เพิ่มผู้ใช้" : "บันทึก"}
+              <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:4 }}>
+                <button className="btn btn-ghost" onClick={closeModal} disabled={saving}>ยกเลิก</button>
+                <button className="btn btn-primary" onClick={saveUser} disabled={saving}>
+                  {saving ? "กำลังบันทึก..." : isNew ? "เพิ่มผู้ใช้" : "บันทึก"}
                 </button>
               </div>
             </div>
