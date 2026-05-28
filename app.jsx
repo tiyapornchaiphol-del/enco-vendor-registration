@@ -906,17 +906,18 @@ function PasswordStrengthBar({ password }) {
 }
 
 // ─── Admin Users (connected to Supabase) ──────────────────────────────────────
+const SUPABASE_USERS_URL = "https://supabase.com/dashboard/project/gpqfpxezejifxynzlcjn/auth/users";
+
 function AdminUsers() {
-  const [users, setUsers]         = React.useState([]);
-  const [loading, setLoading]     = React.useState(true);
-  const [editing, setEditing]     = React.useState(null); // null | user obj
-  const [isNew, setIsNew]         = React.useState(false);
-  const [form, setForm]           = React.useState({});
-  const [saving, setSaving]       = React.useState(false);
-  const [formErr, setFormErr]     = React.useState("");
+  const [users, setUsers]             = React.useState([]);
+  const [loading, setLoading]         = React.useState(true);
+  const [editing, setEditing]         = React.useState(null);
+  const [form, setForm]               = React.useState({});
+  const [saving, setSaving]           = React.useState(false);
+  const [formErr, setFormErr]         = React.useState("");
   const [togglingId, setTogglingId]   = React.useState(null);
   const [resettingId, setResettingId] = React.useState(null);
-  const [toast, showToast]        = useToast();
+  const [toast, showToast]            = useToast();
 
   const loadUsers = () => {
     setLoading(true);
@@ -925,45 +926,19 @@ function AdminUsers() {
   };
   React.useEffect(loadUsers, []);
 
-  const openAdd = () => {
-    setForm({ uuid:"", email:"", name:"", role:"Reviewer" });
-    setIsNew(true); setEditing({}); setFormErr("");
-  };
-  const openEdit = (u) => {
-    setForm({ name: u.name, role: u.role });
-    setIsNew(false); setEditing(u); setFormErr("");
-  };
+  const openEdit  = (u) => { setForm({ name: u.name, role: u.role }); setEditing(u); setFormErr(""); };
   const closeModal = () => { setEditing(null); setFormErr(""); };
 
   const saveUser = async () => {
     if (!form.name?.trim()) { setFormErr("กรุณากรอกชื่อ-นามสกุล"); return; }
-    if (isNew) {
-      const uuidRx = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!form.uuid?.trim()) { setFormErr("กรุณากรอก User ID (UUID) จาก Supabase Dashboard"); return; }
-      if (!uuidRx.test(form.uuid.trim())) { setFormErr("UUID ไม่ถูกต้อง — รูปแบบ: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"); return; }
-      if (!form.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-        setFormErr("กรุณากรอกอีเมลให้ถูกต้อง"); return;
-      }
-    }
     setSaving(true);
     try {
-      if (isNew) {
-        const { data, error } = await window.supabase
-          .from('admin_profiles')
-          .insert([{ id: form.uuid.trim(), email: form.email.trim().toLowerCase(), name: form.name.trim(), role: form.role, is_active: true }])
-          .select().single();
-        if (error) throw error;
-        setUsers([data, ...users]);
-        showToast("เพิ่มผู้ใช้สำเร็จ");
-      } else {
-        await window.updateAdmin(editing.id, { name: form.name.trim(), role: form.role });
-        setUsers(users.map(u => u.id === editing.id ? { ...u, name: form.name.trim(), role: form.role } : u));
-        showToast("บันทึกสำเร็จ");
-      }
+      await window.updateAdmin(editing.id, { name: form.name.trim(), role: form.role });
+      setUsers(users.map(u => u.id === editing.id ? { ...u, name: form.name.trim(), role: form.role } : u));
+      showToast("บันทึกสำเร็จ");
       closeModal();
     } catch (err) {
-      const msg = err?.message || "เกิดข้อผิดพลาด";
-      setFormErr(msg.includes("duplicate") || msg.includes("unique") ? "UUID นี้มีในระบบแล้ว — ตรวจสอบอีกครั้ง" : msg);
+      setFormErr(err?.message || "เกิดข้อผิดพลาด");
     } finally { setSaving(false); }
   };
 
@@ -1000,13 +975,22 @@ function AdminUsers() {
         eyebrow="Admin · System Users"
         title="ผู้ใช้งานระบบ"
         desc="จัดการบัญชีเจ้าหน้าที่และสิทธิ์การเข้าถึง"
-        action={<button className="btn btn-primary btn-sm" onClick={openAdd}><Icon name="plus" size={14} /> เพิ่มผู้ใช้</button>} />
+        action={
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={loadUsers} title="รีเฟรชรายชื่อ">
+              <Icon name="refresh" size={14} /> รีเฟรช
+            </button>
+            <a href={SUPABASE_USERS_URL} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
+              <Icon name="plus" size={14} /> เพิ่มผู้ใช้
+            </a>
+          </div>
+        } />
 
       {/* Guide banner */}
       <div style={{ padding:"12px 16px", background:"var(--primary-soft)", border:"1px solid var(--primary-border)",
         borderRadius:10, marginBottom:20, fontSize:13, color:"var(--primary-ink)", lineHeight:1.75 }}>
-        <b>📋 วิธีเพิ่มผู้ใช้:</b> สร้างบัญชีใน <b>Supabase Dashboard → Authentication → Users</b> พร้อมรหัสผ่านที่แข็งแรง
-        แล้วนำ UUID มากรอกที่ปุ่ม "เพิ่มผู้ใช้" &nbsp;·&nbsp; รีเซ็ตรหัสผ่านผ่านปุ่ม 🔑 (ส่งลิงก์ทางอีเมล)
+        <b>📋 วิธีเพิ่มผู้ใช้:</b> กดปุ่ม "เพิ่มผู้ใช้" → สร้างบัญชีใน Supabase → กลับมากด <b>รีเฟรช</b> — ผู้ใช้จะปรากฏอัตโนมัติ
+        จากนั้นกด ✏️ เพื่อแก้ชื่อ / บทบาทได้เลย &nbsp;·&nbsp; รีเซ็ตรหัสผ่านผ่านปุ่ม 🔑 (ส่งลิงก์ทางอีเมล)
       </div>
 
       <div className="card" style={{ overflow:"hidden" }}>
@@ -1016,7 +1000,7 @@ function AdminUsers() {
           <div style={{ padding:48, textAlign:"center", color:"var(--text-3)" }}>
             <div style={{ fontSize:36, marginBottom:12 }}>👤</div>
             <div style={{ fontWeight:500, marginBottom:6 }}>ยังไม่มีผู้ใช้งาน</div>
-            <div style={{ fontSize:12 }}>กด "เพิ่มผู้ใช้" เพื่อเพิ่มเจ้าหน้าที่</div>
+            <div style={{ fontSize:12 }}>กด "เพิ่มผู้ใช้" สร้างบัญชีใน Supabase แล้วกด รีเฟรช</div>
           </div>
         ) : (
           <table className="tbl">
@@ -1035,14 +1019,9 @@ function AdminUsers() {
                       </div>
                     </div>
                   </td>
+                  <td><span className="pill" style={{ background:"var(--primary-soft)", color:"var(--primary-ink)" }}>{u.role}</span></td>
                   <td>
-                    <span className="pill" style={{ background:"var(--primary-soft)", color:"var(--primary-ink)" }}>{u.role}</span>
-                  </td>
-                  <td>
-                    <span className="pill" style={{
-                      background: u.is_active ? "var(--success-soft)" : "var(--line)",
-                      color: u.is_active ? "oklch(38% 0.11 155)" : "var(--text-3)",
-                    }}>
+                    <span className="pill" style={{ background: u.is_active ? "var(--success-soft)" : "var(--line)", color: u.is_active ? "oklch(38% 0.11 155)" : "var(--text-3)" }}>
                       <span className="pill-dot" /> {u.is_active ? "Active" : "Inactive"}
                     </span>
                   </td>
@@ -1075,46 +1054,20 @@ function AdminUsers() {
 
       <Toast toast={toast} />
 
-      {/* Add / Edit modal */}
+      {/* Edit modal */}
       {editing !== null && (
         <div style={{ position:"fixed", inset:0, zIndex:999,
           background:"rgba(0,0,0,.4)", backdropFilter:"blur(2px)",
           display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}
           onClick={closeModal}>
-          <div className="card" style={{ width:"100%", maxWidth:540, padding:28, maxHeight:"90vh", overflowY:"auto" }}
+          <div className="card" style={{ width:"100%", maxWidth:480, padding:28 }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
-              <h3 style={{ margin:0, fontSize:17, fontWeight:600 }}>
-                {isNew ? "เพิ่มผู้ใช้งานระบบ" : `แก้ไข — ${editing.name}`}
-              </h3>
+              <h3 style={{ margin:0, fontSize:17, fontWeight:600 }}>แก้ไข — {editing.name}</h3>
               <button className="btn btn-ghost btn-sm btn-icon" onClick={closeModal}><Icon name="x" size={16} /></button>
             </div>
 
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-              {/* New-user guide + UUID + email */}
-              {isNew && (<>
-                <div style={{ padding:"12px 14px", background:"var(--warn-soft)", borderRadius:8, fontSize:12.5, color:"oklch(45% 0.12 70)", lineHeight:1.75 }}>
-                  <b>⚠️ ก่อนกรอก UUID:</b><br/>
-                  1. ไป <b>Supabase → Authentication → Users</b><br/>
-                  2. กด <b>Add user → Create new user</b> → กรอก email + รหัสผ่าน → เปิด Auto Confirm<br/>
-                  3. คัดลอก <b>UUID</b> จากคอลัมน์ "ID" แล้วกลับมากรอกด้านล่าง
-                </div>
-                <div>
-                  <label className="label" style={{ marginBottom:6 }}>User ID (UUID) <span className="req">*</span></label>
-                  <input className="input mono" value={form.uuid || ""}
-                    onChange={e => setForm({ ...form, uuid: e.target.value.trim() })}
-                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style={{ width:"100%", letterSpacing:".04em" }} />
-                  <p className="help" style={{ marginTop:5 }}>คัดลอกจากคอลัมน์ "ID" ใน Supabase Auth Users</p>
-                </div>
-                <div>
-                  <label className="label" style={{ marginBottom:6 }}>อีเมล <span className="req">*</span></label>
-                  <input className="input" type="email" value={form.email || ""}
-                    onChange={e => setForm({ ...form, email: e.target.value })}
-                    placeholder="email@enco.co.th" style={{ width:"100%" }} />
-                  <p className="help" style={{ marginTop:5 }}>ต้องตรงกับอีเมลที่สร้างใน Supabase (ใช้ส่งลิงก์รีเซ็ตรหัสผ่าน)</p>
-                </div>
-              </>)}
-
               <div>
                 <label className="label" style={{ marginBottom:6 }}>ชื่อ-นามสกุล <span className="req">*</span></label>
                 <input className="input" value={form.name || ""}
@@ -1122,22 +1075,6 @@ function AdminUsers() {
                   placeholder="ชื่อ นามสกุล" style={{ width:"100%" }} />
               </div>
 
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)", display: "block", marginBottom: 6 }}>
-                  ชื่อ-นามสกุล <span style={{ color: "var(--danger)" }}>*</span>
-                </label>
-                <input className="input" value={form.name}
-                  onChange={e => setForm({ ...form, name: e.target.value })}
-                  placeholder="ชื่อ นามสกุล" style={{ width: "100%" }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)", display: "block", marginBottom: 6 }}>
-                  อีเมล <span style={{ color: "var(--danger)" }}>*</span>
-                </label>
-                <input className="input" type="email" value={form.email}
-                  onChange={e => setForm({ ...form, email: e.target.value })}
-                  placeholder="email@enco.co.th" style={{ width: "100%" }} />
-              </div>
               <div>
                 <label className="label" style={{ marginBottom:6 }}>บทบาท (Role)</label>
                 <select className="select" value={form.role || "Reviewer"}
@@ -1170,7 +1107,7 @@ function AdminUsers() {
               <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:4 }}>
                 <button className="btn btn-ghost" onClick={closeModal} disabled={saving}>ยกเลิก</button>
                 <button className="btn btn-primary" onClick={saveUser} disabled={saving}>
-                  {saving ? "กำลังบันทึก..." : isNew ? "เพิ่มผู้ใช้" : "บันทึก"}
+                  {saving ? "กำลังบันทึก..." : "บันทึก"}
                 </button>
               </div>
             </div>
