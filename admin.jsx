@@ -4,42 +4,36 @@
 function exportToExcel(rows, announcements, annoId) {
   if (!window.XLSX) { alert("ไม่สามารถ Export ได้ — กรุณาโหลดหน้าใหม่"); return; }
   const annoMap = Object.fromEntries((announcements || []).map(a => [a.id, a.title]));
-  const statusMap = {
-    new: "ใหม่ — รอตรวจ", review: "กำลังตรวจสอบ",
-    approved: "อนุมัติ", rejected: "ปฏิเสธ",
-  };
   const data = rows.map(r => ({
     // ── ข้อมูลการสมัคร ──
-    "เลขที่ใบสมัคร":              r.id,
-    "ประกาศที่สมัคร":             r.annoId || "-",
-    "ชื่อประกาศ":                 annoMap[r.annoId] || "-",
-    "วันที่ยื่นสมัคร":             r.submittedAt,
-    "สถานะ":                     statusMap[r.status] || r.status,
-    "ความครบถ้วนเอกสาร (%)":     r.completeness,
+    "เลขที่ใบสมัคร":          r.id,
+    "ประกาศที่สมัคร":         r.annoId || "-",
+    "ชื่อประกาศ":             annoMap[r.annoId] || "-",
+    "วันที่ยื่นสมัคร":         r.submittedAt,
     // ── Step 1: ประเภทกลุ่มงาน ──
-    "ประเภทกลุ่มงาน":             r.category,
+    "ประเภทกลุ่มงาน":         (r.categories || [r.category]).filter(Boolean).join(', ') || '-',
     // ── Step 2: ข้อมูลทั่วไป ──
-    "ชื่อ Vendor":                r.company,
-    "เลขผู้เสียภาษี":             r.taxId,
-    "ระยะเวลาทำธุรกิจ (ปี)":     r.yearsInBusiness || "-",
-    "ที่อยู่":                    r.address || "-",
-    "แขวง/ตำบล":                 r.subDistrict || "-",
-    "เขต/อำเภอ":                 r.district || "-",
-    "จังหวัด":                   r.province || "-",
-    "รหัสไปรษณีย์":              r.postcode || "-",
-    "โทรศัพท์บริษัท":            r.phone || "-",
-    "โทรศัพท์มือถือ":            r.mobile || "-",
-    "อีเมลบริษัท":               r.companyEmail || "-",
-    "ทุนจดทะเบียน (บาท)":        r.capital || "-",
+    "ชื่อ Vendor":            r.company,
+    "เลขผู้เสียภาษี":         r.taxId,
+    "ระยะเวลาทำธุรกิจ (ปี)": r.yearsInBusiness || "-",
+    "ที่อยู่":                r.address || "-",
+    "แขวง/ตำบล":             r.subDistrict || "-",
+    "เขต/อำเภอ":             r.district || "-",
+    "จังหวัด":               r.province || "-",
+    "รหัสไปรษณีย์":          r.postcode || "-",
+    "โทรศัพท์บริษัท":        r.phone || "-",
+    "โทรศัพท์มือถือ":        r.mobile || "-",
+    "อีเมลบริษัท":           r.companyEmail || "-",
+    "ทุนจดทะเบียน (บาท)":    r.capital || "-",
     // ── Step 3: ผู้ติดต่อ ──
-    "ชื่อผู้ติดต่อ":              r.contact,
-    "ตำแหน่ง":                   r.position || "-",
-    "อีเมลผู้ติดต่อ":            r.email,
-    "โทรศัพท์ผู้ติดต่อ":         r.contactPhone || "-",
+    "ชื่อผู้ติดต่อ":          r.contact,
+    "ตำแหน่ง":               r.position || "-",
+    "อีเมลผู้ติดต่อ":        r.email,
+    "โทรศัพท์ผู้ติดต่อ":     r.contactPhone || "-",
   }));
   const ws = XLSX.utils.json_to_sheet(data);
   ws["!cols"] = [
-    {wch:16},{wch:14},{wch:50},{wch:16},{wch:16},{wch:14},
+    {wch:16},{wch:14},{wch:50},{wch:16},
     {wch:26},
     {wch:32},{wch:17},{wch:14},{wch:38},{wch:14},{wch:14},{wch:18},{wch:11},{wch:14},{wch:14},{wch:28},{wch:20},
     {wch:20},{wch:18},{wch:28},{wch:14},
@@ -121,159 +115,147 @@ function computeAnnoStatus(closedAt, openedAt) {
 }
 
 function AdminDashboard({ goto }) {
-  const data = useData();
-  const submissions = data?.submissions || [];
+  const { submissions = [], groups = [] } = useData();
+  const groupList = groups.length > 0 ? groups : VENDOR_CATEGORIES;
 
-  // Calculate real statistics
+  const now = new Date();
+  const thaiMonthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+                          "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+
   const totalCount = submissions.length;
-  const newCount = submissions.filter(s => s.status === "new").length;
-  const reviewCount = submissions.filter(s => s.status === "review").length;
-  const approvedCount = submissions.filter(s => s.status === "approved").length;
-  const rejectedCount = submissions.filter(s => s.status === "rejected").length;
-  const docPendingCount = submissions.filter(s => s.docsPending === true || s.status === "review").length;
+  const thisMonthCount = submissions.filter(s => {
+    const d = new Date(s.submittedAt);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+  const thisYearCount = submissions.filter(s =>
+    new Date(s.submittedAt).getFullYear() === now.getFullYear()
+  ).length;
 
-  // Calculate percentage of approved
-  const approvedPercent = totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0;
+  const thaiMonthLabel = thaiMonthNames[now.getMonth()] + " " + (now.getFullYear() + 543);
+  const thaiYearLabel  = "พ.ศ. " + (now.getFullYear() + 543);
 
-  // Generate recent activities from submissions
-  const recentActivities = submissions
-    .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
-    .slice(0, 5)
-    .map(s => ({
-      who: "ระบบ",
-      what: s.status === "approved" ? "อนุมัติใบสมัคร" : s.status === "new" ? "รับใบสมัครใหม่" : s.status === "review" ? "กำลังตรวจสอบ" : "ปฏิเสธใบสมัคร",
-      who2: s.company || "บริษัท",
-      submittedAt: s.submittedAt,
-      type: s.status === "approved" ? "approve" : s.status === "rejected" ? "reject" : s.status === "review" ? "request" : "new",
-    }));
+  // Group submissions by category — a submission with multiple categories
+  // appears under each of its selected groups
+  const byCategory = groupList
+    .map(g => ({
+      group: g,
+      subs: submissions
+        .filter(s => (s.categories || [s.category]).filter(Boolean).includes(g.id))
+        .slice().sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)),
+    }))
+    .filter(c => c.subs.length > 0);
 
   return (
     <div className="fade-in">
       <SectionHeader
         eyebrow="Admin · Dashboard"
         title="ภาพรวมการรับสมัครคู่ค้า"
-        desc="สรุปยอดผู้สมัคร สถานะการดำเนินการ และกิจกรรมล่าสุดในระบบ"
+        desc="สรุปยอดผู้สมัครทั้งหมด รายเดือน รายปี และแยกตามประเภทกลุ่มงาน"
         action={
-          <>
-            <button className="btn btn-ghost btn-sm"
-              onClick={() => simDownload("EnCo_Dashboard_Report.xlsx")}>
-              <Icon name="download" size={14} /> Export Excel
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={() => goto("admin-announcements")}>
-              <Icon name="plus" size={14} /> สร้างประกาศใหม่
-            </button>
-          </>
+          <button className="btn btn-primary btn-sm" onClick={() => goto("admin-announcements")}>
+            <Icon name="plus" size={14} /> สร้างประกาศใหม่
+          </button>
         } />
 
-      {/* Stats row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+      {/* 3 stat cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
         gap: 14, marginBottom: 24 }}>
-        <StatCard label="ผู้สมัครทั้งหมด" value={totalCount.toString()} sub="ปีงบประมาณ 2569" />
-        <StatCard label="รอตรวจสอบ" value={newCount.toString()} sub={`+${newCount} รายการ`} accent="oklch(58% 0.13 70)" />
-        <StatCard label="อนุมัติแล้ว" value={approvedCount.toString()} sub={`${approvedPercent}% ของยอดทั้งหมด`} accent="oklch(52% 0.13 155)" />
-        <StatCard label="รอเอกสารเพิ่ม" value={docPendingCount.toString()} sub="อยู่ระหว่างดำเนินการ" accent="oklch(55% 0.14 250)" />
+        <StatCard label="ผู้สมัครทั้งหมด"  value={totalCount.toString()}      sub="ทุกประกาศ ทุกปี" />
+        <StatCard label="สมัครเดือนนี้"     value={thisMonthCount.toString()}  sub={thaiMonthLabel}
+          accent="oklch(52% 0.13 155)" />
+        <StatCard label="สมัครปีนี้"        value={thisYearCount.toString()}   sub={thaiYearLabel}
+          accent="oklch(58% 0.15 70)" />
       </div>
 
-      {/* Two-col layout: pipeline chart + recent activity */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.8fr) 1fr",
-        gap: 20, marginBottom: 24 }}>
-        {/* Pipeline */}
-        <div className="card" style={{ padding: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline",
-            marginBottom: 18 }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>การสมัครรายเดือน</h3>
-              <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
-                6 เดือนล่าสุด · แยกตามสถานะ
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 14, fontSize: 12 }}>
-              <LegendDot color="var(--primary)" label="ส่งใหม่" />
-              <LegendDot color="oklch(58% 0.13 70)" label="ตรวจสอบ" />
-              <LegendDot color="oklch(52% 0.13 155)" label="อนุมัติ" />
-            </div>
+      {/* Bar chart */}
+      <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between",
+          alignItems: "baseline", marginBottom: 18 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>การสมัครรายเดือน</h3>
+            <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
+              6 เดือนล่าสุด · ยอดผู้สมัครรวม
+            </p>
           </div>
-          <BarChart submissions={submissions} />
+          <LegendDot color="var(--primary)" label="ยื่นสมัคร" />
         </div>
-        {/* Recent activity */}
-        <div className="card" style={{ padding: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline",
-            marginBottom: 14 }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>กิจกรรมล่าสุด</h3>
-            <a href="#" style={{ fontSize: 12.5, color: "var(--primary)" }}>ดูทั้งหมด</a>
-          </div>
-          {recentActivities.map((a, i) => (
-            <div key={i} style={{ display: "flex", gap: 12, padding: "10px 0",
-              borderTop: i === 0 ? "none" : "1px solid var(--line-2)" }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: 7,
-                background: a.type === "approve" ? "var(--success-soft)"
-                          : a.type === "reject"  ? "var(--danger-soft)"
-                          : a.type === "request" ? "var(--warn-soft)"
-                          :                        "var(--primary-soft)",
-                color: a.type === "approve" ? "oklch(38% 0.11 155)"
-                      : a.type === "reject"  ? "oklch(42% 0.14 25)"
-                      : a.type === "request" ? "oklch(45% 0.12 70)"
-                      :                        "var(--primary-ink)",
-                display: "grid", placeItems: "center", flexShrink: 0,
-              }}>
-                <Icon name={a.type === "approve" ? "check" : a.type === "reject" ? "x" :
-                  a.type === "request" ? "paperclip" : "plus"} size={14} stroke={2.2} />
+        <BarChart submissions={submissions} />
+      </div>
+
+      {/* Category breakdown */}
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between",
+        marginBottom: 14, gap: 12 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>สรุปตามประเภทกลุ่มงาน</h3>
+        <button className="btn btn-ghost btn-sm" onClick={() => goto("admin-submissions")}>
+          ดูใบสมัครทั้งหมด <Icon name="arrowRight" size={14} />
+        </button>
+      </div>
+
+      {byCategory.length === 0 ? (
+        <div className="card" style={{ padding: "40px 24px", textAlign: "center",
+          color: "var(--text-3)", fontSize: 13.5 }}>
+          ยังไม่มีใบสมัครในระบบ
+        </div>
+      ) : (
+        <div style={{ display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
+          {byCategory.map(({ group: g, subs }) => (
+            <div key={g.id} className="card" style={{ overflow: "hidden" }}>
+              {/* Category header */}
+              <div style={{ padding: "14px 20px", background: "var(--surface-2)",
+                borderBottom: "1px solid var(--line)",
+                display: "flex", gap: 12, alignItems: "center" }}>
+                <div style={{ fontSize: 22, lineHeight: 1 }}>{g.icon}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14.5,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {g.th}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 1 }}>
+                    <span className="num" style={{ fontWeight: 600, color: "var(--primary)" }}>
+                      {subs.length}
+                    </span>{" "}บริษัท
+                  </div>
+                </div>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, lineHeight: 1.4 }}>
-                  <b>{a.who}</b> <span style={{ color: "var(--text-2)" }}>{a.what}</span>{" "}
-                  <span style={{ color: "var(--text)" }}>{a.who2}</span>
-                </div>
-                <div style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 2 }}>
-                  {formatTimeAgo(a.submittedAt)}
-                </div>
+              {/* Company rows */}
+              <div>
+                {subs.map((s, i) => (
+                  <div key={s.id}
+                    onClick={() => goto("admin-detail", s.id)}
+                    style={{
+                      display: "flex", gap: 10, alignItems: "center",
+                      padding: "9px 20px", cursor: "pointer",
+                      borderTop: i > 0 ? "1px solid var(--line-2)" : "none",
+                      transition: "background .1s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "var(--surface-2)"}
+                    onMouseLeave={e => e.currentTarget.style.background = ""}>
+                    <Avatar name={s.company} size={28} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 500, fontSize: 13.5,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {s.company}
+                      </div>
+                      <div className="mono" style={{ fontSize: 11, color: "var(--text-3)" }}>
+                        {s.taxId || s.id}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--text-3)", flexShrink: 0 }}>
+                      {fmtDate(s.submittedAt)}
+                    </div>
+                    <Icon name="chevron" size={14} style={{ color: "var(--text-3)", flexShrink: 0 }} />
+                  </div>
+                ))}
               </div>
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Pending list */}
-      <div className="card" style={{ overflow: "hidden" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>ใบสมัครที่รอดำเนินการ</h3>
-            <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
-              {newCount} รายการรอตรวจสอบ · {docPendingCount} รายการต้องการเอกสารเพิ่ม
-            </p>
-          </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => goto("admin-submissions")}>
-            ดูทั้งหมด <Icon name="arrowRight" size={14} />
-          </button>
-        </div>
-        <SubmissionsTable rows={submissions.slice(0, 5)} goto={goto} />
-      </div>
+      )}
     </div>
   );
 }
 
-// Helper function to format time ago in Thai
-function formatTimeAgo(dateStr) {
-  if (!dateStr) return "เมื่อไม่นานมานี้";
-  const now = new Date();
-  const date = new Date(dateStr);
-  const seconds = Math.floor((now - date) / 1000);
-
-  if (seconds < 60) return "เมื่อตอนนี้";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} นาทีที่แล้ว`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} ชม.ที่แล้ว`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return "เมื่อวาน";
-  if (days < 7) return `${days} วันที่แล้ว`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 4) return `${weeks} สัปดาห์ที่แล้ว`;
-  const months = Math.floor(days / 30);
-  return `${months} เดือนที่แล้ว`;
-}
 
 const LegendDot = ({ color, label }) => (
   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--text-2)" }}>
@@ -306,40 +288,24 @@ const BarChart = ({ submissions = [] }) => {
       return subDate >= monthStart && subDate < monthEnd;
     });
 
-    return {
-      m: thaiMonths[month],
-      a: monthSubmissions.filter(s => s.status === "new").length,           // new (ส่งใหม่)
-      b: monthSubmissions.filter(s => s.status === "review").length,        // review (ตรวจสอบ)
-      c: monthSubmissions.filter(s => s.status === "approved").length,      // approved (อนุมัติ)
-      d: monthSubmissions.filter(s => s.status === "rejected").length,      // rejected (ปฏิเสธ)
-    };
+    return { m: thaiMonths[month], total: monthSubmissions.length };
   });
 
-  const max = Math.max(...monthlyData.map(d => d.a + d.b + d.c + d.d), 1);
+  const max = Math.max(...monthlyData.map(d => d.total), 1);
 
   return (
     <div style={{ height: 220, display: "flex", alignItems: "flex-end",
       gap: 18, padding: "8px 0 0" }}>
       {monthlyData.map((d, i) => {
-        const total = d.a + d.b + d.c + d.d;
-        const h = total > 0 ? (total / max) * 100 : 4;
+        const h = d.total > 0 ? (d.total / max) * 100 : 4;
         return (
           <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column",
             alignItems: "center", gap: 8 }}>
-            <div className="num" style={{ fontSize: 11, color: "var(--text-3)" }}>{total}</div>
+            <div className="num" style={{ fontSize: 11, color: "var(--text-3)" }}>{d.total || ""}</div>
             <div style={{ width: "100%", height: `${h}%`, minHeight: 4,
-              display: "flex", flexDirection: "column",
-              borderRadius: "6px 6px 0 0", overflow: "hidden",
-              boxShadow: "var(--shadow-sm)" }}>
-              {total > 0 && (
-                <>
-                  {d.a > 0 && <div style={{ flex: d.a, background: "var(--primary)" }} />}
-                  {d.b > 0 && <div style={{ flex: d.b, background: "oklch(58% 0.13 70)" }} />}
-                  {d.c > 0 && <div style={{ flex: d.c, background: "oklch(52% 0.13 155)" }} />}
-                  {d.d > 0 && <div style={{ flex: d.d, background: "var(--line)" }} />}
-                </>
-              )}
-            </div>
+              background: d.total > 0 ? "var(--primary)" : "var(--line-2)",
+              borderRadius: "6px 6px 0 0",
+              boxShadow: d.total > 0 ? "var(--shadow-sm)" : "none" }} />
             <div style={{ fontSize: 11.5, color: "var(--text-2)", fontWeight: 500 }}>{d.m}</div>
           </div>
         );
@@ -352,14 +318,12 @@ const BarChart = ({ submissions = [] }) => {
 // ── Export modal ────────────────────────────────────────────────────────────
 function ExportModal({ onClose, announcements, submissions }) {
   const [annoFilter, setAnnoFilter] = React.useState("all");
-  const [statusFilter, setStatusFilter] = React.useState("all");
 
   // Use submissions from context, fallback to SUBMISSIONS
   const allSubmissions = submissions && submissions.length > 0 ? submissions : SUBMISSIONS;
 
   const filtered = allSubmissions.filter(s =>
-    (annoFilter === "all" || s.annoId === annoFilter) &&
-    (statusFilter === "all" || s.status === statusFilter)
+    annoFilter === "all" || s.annoId === annoFilter
   );
 
   const doExport = () => {
@@ -406,64 +370,19 @@ function ExportModal({ onClose, announcements, submissions }) {
             </select>
           </div>
 
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)",
-              display: "block", marginBottom: 8 }}>
-              สถานะใบสมัคร
-            </label>
-            <select className="select" value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)} style={{ width: "100%" }}>
-              <option value="all">ทุกสถานะ</option>
-              <option value="new">ใหม่ — รอตรวจ</option>
-              <option value="review">กำลังตรวจสอบ</option>
-              <option value="approved">อนุมัติ</option>
-            </select>
-          </div>
-
           {/* Preview summary */}
           <div style={{ padding: "16px", background: "var(--surface-2)",
             borderRadius: 10, border: "1px solid var(--line)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 10 }}>
-              <div>
-                <div style={{ fontSize: 11.5, color: "var(--text-3)", marginBottom: 2 }}>
-                  จำนวนรายการที่จะ Export
-                </div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                  <span className="num" style={{ fontSize: 28, fontWeight: 700,
-                    color: filtered.length > 0 ? "var(--primary)" : "var(--text-3)" }}>
-                    {filtered.length}
-                  </span>
-                  <span style={{ fontSize: 13, color: "var(--text-3)" }}>ราย</span>
-                </div>
-              </div>
-              {filtered.length > 0 && (
-                <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {Object.entries(
-                    filtered.reduce((acc, s) => { acc[s.status] = (acc[s.status] || 0) + 1; return acc; }, {})
-                  ).map(([st, n]) => {
-                    const colors = {
-                      new:      { bg: "var(--primary-soft)",  ink: "var(--primary-ink)" },
-                      review:   { bg: "var(--warn-soft)",     ink: "oklch(45% 0.12 70)" },
-                      approved: { bg: "var(--success-soft)",  ink: "oklch(38% 0.11 155)" },
-                      rejected: { bg: "var(--danger-soft)",   ink: "oklch(42% 0.14 25)" },
-                    };
-                    const labels = { new: "ใหม่", review: "ตรวจสอบ", approved: "อนุมัติ", rejected: "ปฏิเสธ" };
-                    const c = colors[st] || { bg: "var(--line)", ink: "var(--text-3)" };
-                    return (
-                      <span key={st} className="num" style={{
-                        fontSize: 11.5, padding: "3px 9px", borderRadius: 99,
-                        background: c.bg, color: c.ink, fontWeight: 600,
-                      }}>
-                        {labels[st] || st} {n}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
+              <span className="num" style={{ fontSize: 28, fontWeight: 700,
+                color: filtered.length > 0 ? "var(--primary)" : "var(--text-3)" }}>
+                {filtered.length}
+              </span>
+              <span style={{ fontSize: 13, color: "var(--text-3)" }}>ราย</span>
             </div>
             <div style={{ fontSize: 11.5, color: "var(--text-3)", lineHeight: 1.65 }}>
               <b style={{ color: "var(--text-2)" }}>คอลัมน์ที่จะส่งออก:</b>{" "}
-              เลขที่ใบสมัคร · ประกาศ · ชื่อประกาศ · ชื่อบริษัท · เลขผู้เสียภาษี · ประเภทงาน · ผู้ติดต่อ · ตำแหน่ง · อีเมล · เบอร์โทร · ที่อยู่ · จังหวัด · รหัสไปรษณีย์ · ทุนจดทะเบียน · ระยะเวลา · วันที่สมัคร · สถานะ · ความครบถ้วน
+              เลขที่ใบสมัคร · ประกาศ · ชื่อประกาศ · วันที่สมัคร · ประเภทกลุ่มงาน · ชื่อบริษัท · เลขผู้เสียภาษี · ระยะเวลา · ที่อยู่ · จังหวัด · รหัสไปรษณีย์ · โทรศัพท์ · อีเมลบริษัท · ทุนจดทะเบียน · ผู้ติดต่อ · ตำแหน่ง · อีเมลผู้ติดต่อ · โทรศัพท์ผู้ติดต่อ
             </div>
           </div>
 
@@ -482,27 +401,40 @@ function ExportModal({ onClose, announcements, submissions }) {
 }
 
 // ── Submissions list ────────────────────────────────────────────────────────
+const PAGE_SIZE = 25;
+
 function AdminSubmissions({ goto }) {
-  const { announcements, submissions } = useData();
-  const [filter, setFilter] = React.useState("all");
+  const { announcements, submissions, setSubmissions } = useData();
   const [annoFilter, setAnnoFilter] = React.useState("all");
   const [search, setSearch] = React.useState("");
   const [showExport, setShowExport] = React.useState(false);
+  const [page, setPage] = React.useState(1);
+  const [refreshing, setRefreshing] = React.useState(false);
 
   // Use submissions from context, fallback to SUBMISSIONS
   const allSubmissions = submissions && submissions.length > 0 ? submissions : SUBMISSIONS;
 
-  const filters = [
-    { id: "all",      label: "ทั้งหมด",  count: allSubmissions.length },
-    { id: "new",      label: "ใหม่",      count: allSubmissions.filter(s => s.status === "new").length },
-    { id: "review",   label: "ตรวจสอบ",  count: allSubmissions.filter(s => s.status === "review").length },
-    { id: "approved", label: "อนุมัติ",  count: allSubmissions.filter(s => s.status === "approved").length },
-  ];
-  const rows = allSubmissions.filter(s =>
-    (filter === "all" || s.status === filter) &&
+  const filtered = allSubmissions.filter(s =>
     (annoFilter === "all" || s.annoId === annoFilter) &&
-    (search === "" || s.company.includes(search) || s.id.includes(search) || s.taxId.includes(search))
+    (search === "" || (s.company || "").includes(search) || s.id.includes(search) || (s.taxId || "").includes(search))
   );
+
+  // Reset to page 1 whenever filter/search changes
+  React.useEffect(() => { setPage(1); }, [annoFilter, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Refresh data from Supabase
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      const fresh = await window.getSubmissionsFromDb?.();
+      if (fresh) setSubmissions(fresh);
+    } catch (_) {}
+    setRefreshing(false);
+  };
 
   return (
     <div className="fade-in">
@@ -515,33 +447,31 @@ function AdminSubmissions({ goto }) {
         title="ใบสมัครคู่ค้า"
         desc="จัดการและพิจารณาใบสมัครทั้งหมดในระบบ"
         action={
-          <button className="btn btn-ghost btn-sm" onClick={() => setShowExport(true)}>
-            <Icon name="download" size={14} /> Export Excel
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={handleRefresh} disabled={refreshing}
+              title="โหลดข้อมูลใหม่จากฐานข้อมูล">
+              <Icon name="track" size={14} style={{ animation: refreshing ? "spin .8s linear infinite" : "none" }} />
+              {refreshing ? "กำลังโหลด..." : "Refresh"}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowExport(true)}>
+              <Icon name="download" size={14} /> Export Excel
+            </button>
+          </div>
         } />
 
-      {/* Tabs + filters */}
+      {/* Filters */}
       <div className="card" style={{ padding: "12px 16px", marginBottom: 16,
         display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
         alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-          {filters.map(f => (
-            <button key={f.id} onClick={() => setFilter(f.id)}
-              style={{
-                padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer",
-                background: filter === f.id ? "var(--primary-soft)" : "transparent",
-                color: filter === f.id ? "var(--primary-ink)" : "var(--text-2)",
-                fontWeight: filter === f.id ? 600 : 500, fontSize: 13,
-                display: "inline-flex", alignItems: "center", gap: 8,
-              }}>
-              {f.label}
-              <span className="num" style={{
-                background: filter === f.id ? "rgba(255,255,255,.6)" : "var(--surface-2)",
-                color: filter === f.id ? "var(--primary-ink)" : "var(--text-3)",
-                padding: "1px 7px", borderRadius: 99, fontSize: 11, fontWeight: 600,
-              }}>{f.count}</span>
-            </button>
-          ))}
+        {/* Result count */}
+        <div style={{ fontSize: 13, color: "var(--text-3)" }}>
+          แสดง{" "}
+          <span className="num" style={{ fontWeight: 600, color: "var(--text)" }}>
+            {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)}
+          </span>
+          {" "}จาก{" "}
+          <span className="num" style={{ fontWeight: 600, color: "var(--text)" }}>{filtered.length}</span>
+          {" "}รายการ
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           {/* Announcement filter */}
@@ -556,20 +486,75 @@ function AdminSubmissions({ goto }) {
           {/* Search */}
           <div style={{ display: "flex", gap: 8, alignItems: "center",
             background: "var(--surface-2)", padding: "4px 10px", borderRadius: 8,
-            minWidth: 260 }}>
+            minWidth: 260, border: "1px solid var(--line)" }}>
             <Icon name="search" size={14} style={{ color: "var(--text-3)" }} />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="ค้นหาบริษัท, เลขที่ใบสมัคร, เลขผู้เสียภาษี..."
               style={{ flex: 1, border: "none", background: "transparent", outline: "none",
                 height: 30, fontSize: 13 }} />
+            {search && (
+              <button onClick={() => setSearch("")}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0,
+                  color: "var(--text-3)", display: "flex", alignItems: "center" }}>
+                <Icon name="x" size={13} />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="card" style={{ overflow: "hidden" }}>
-        <SubmissionsTable rows={rows} goto={goto} full />
+      <div className="card" style={{ overflow: "hidden", marginBottom: totalPages > 1 ? 0 : undefined }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--text-3)", fontSize: 13.5 }}>
+            {search ? `ไม่พบรายการที่ตรงกับ "${search}"` : "ยังไม่มีใบสมัครในระบบ"}
+          </div>
+        ) : (
+          <SubmissionsTable rows={rows} goto={goto} full />
+        )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="card" style={{
+          padding: "10px 16px", borderTop: "none", borderRadius: "0 0 var(--radius-lg) var(--radius-lg)",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+        }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}>
+            <Icon name="arrowLeft" size={14} /> ก่อนหน้า
+          </button>
+          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(n => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+              .reduce((acc, n, idx, arr) => {
+                if (idx > 0 && n - arr[idx - 1] > 1) acc.push("…");
+                acc.push(n);
+                return acc;
+              }, [])
+              .map((n, i) => n === "…" ? (
+                <span key={`e${i}`} style={{ padding: "0 4px", color: "var(--text-3)", fontSize: 13 }}>…</span>
+              ) : (
+                <button key={n} onClick={() => setPage(n)}
+                  className="btn btn-sm"
+                  style={{
+                    minWidth: 32, padding: "0 4px",
+                    background: n === page ? "var(--primary)" : "transparent",
+                    color: n === page ? "#fff" : "var(--text-2)",
+                    border: n === page ? "1px solid var(--primary)" : "1px solid transparent",
+                    fontWeight: n === page ? 600 : 400,
+                  }}>
+                  {n}
+                </button>
+              ))
+            }
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}>
+            ถัดไป <Icon name="arrowRight" size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -587,8 +572,6 @@ const SubmissionsTable = ({ rows, goto, full = false }) => {
         {full && <th style={{ width: 115 }}>ประกาศ</th>}
         {full && <th>ประเภท</th>}
         <th>ยื่นเมื่อ</th>
-        {full && <th>ครบถ้วน</th>}
-        <th>สถานะ</th>
         <th style={{ width: 60 }}></th>
       </tr>
     </thead>
@@ -616,10 +599,12 @@ const SubmissionsTable = ({ rows, goto, full = false }) => {
               ) : <span style={{ color: "var(--text-3)" }}>-</span>}
             </td>
           )}
-          {full && <td style={{ color: "var(--text-2)", fontSize: 13 }}>{catName(r.category)}</td>}
+          {full && (
+            <td style={{ color: "var(--text-2)", fontSize: 13 }}>
+              {(r.categories || [r.category]).filter(Boolean).map(cid => catName(cid)).join(', ') || '-'}
+            </td>
+          )}
           <td style={{ color: "var(--text-2)", fontSize: 13 }}>{fmtDateTime(r.submittedAt)}</td>
-          {full && <td><Progress value={r.completeness} /></td>}
-          <td><StatusChip status={r.status} /></td>
           <td><Icon name="chevron" size={16} style={{ color: "var(--text-3)" }} /></td>
         </tr>
       ))}
@@ -630,23 +615,9 @@ const SubmissionsTable = ({ rows, goto, full = false }) => {
 
 // ── Submission detail ───────────────────────────────────────────────────────
 function AdminDetail({ goto, id }) {
-  const { submissions, setSubmissions, loading, groups } = useData();
+  const { submissions, loading, groups } = useData();
   const allSubmissions = submissions && submissions.length > 0 ? submissions : SUBMISSIONS;
   const base = allSubmissions.find(x => x.id === id) || allSubmissions[0];
-
-  // Hooks must run unconditionally — use safe fallback when base is undefined
-  const [status, setStatus] = React.useState(base?.status ?? "new");
-  const [tab, setTab] = React.useState("info");
-  const [requestingDocs, setRequestingDocs] = React.useState(false);
-  const [docRequests, setDocRequests] = React.useState([]);
-  const [showRequestModal, setShowRequestModal] = React.useState(false);
-  const [confirmApprove, setConfirmApprove] = React.useState(false);
-  const [toast, showToast] = useToast();
-
-  // Sync status once data loads (base may arrive after initial render)
-  React.useEffect(() => {
-    if (base?.status) setStatus(base.status);
-  }, [base?.status]);
 
   // Guard: still loading, or submission not found
   if (!base) {
@@ -669,73 +640,16 @@ function AdminDetail({ goto, id }) {
     );
   }
 
-  const s = { ...base, status };
+  const s = { ...base };
 
   // Resolve category ID → display name for the header
   const allGroups = groups && groups.length > 0 ? groups : VENDOR_CATEGORIES;
-  const catDisplayName = allGroups.find(g => g.id === s.category)?.th || s.category || "-";
-
-  const handleApprove = async () => {
-    setConfirmApprove(false);
-    setStatus("approved");
-    // Update in Supabase
-    try {
-      if (window.updateSubmissionInDb) {
-        await window.updateSubmissionInDb(s.id, { status: "approved" });
-      }
-    } catch (e) {
-      console.error("Update status error:", e);
-    }
-    // Update local DataContext so the list reflects the change immediately
-    if (setSubmissions) {
-      setSubmissions(prev => prev.map(x => x.id === s.id ? { ...x, status: "approved" } : x));
-    }
-    showToast(`อนุมัติ ${s.company} เรียบร้อยแล้ว`);
-    // Navigate back to submissions list after toast
-    setTimeout(() => goto("admin-submissions"), 1400);
-  };
-
-  const handleDocRequest = (requests) => {
-    setDocRequests(prev => [...prev, ...requests]);
-    setRequestingDocs(true);
-    setTab("extra-docs");
-    setShowRequestModal(false);
-    showToast(`ส่งคำขอเอกสาร ${requests.length} รายการไปยัง Vendor แล้ว`, "warn");
-  };
+  const catDisplayName = (s.categories || [s.category]).filter(Boolean)
+    .map(cid => allGroups.find(g => g.id === cid)?.th || cid)
+    .join(' · ') || '-';
 
   return (
     <div className="fade-in">
-      <Toast toast={toast} />
-
-      {/* Confirm approve modal */}
-      {confirmApprove && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(0,0,0,.4)",
-          backdropFilter: "blur(2px)", display: "flex", alignItems: "center",
-          justifyContent: "center", padding: 24 }}
-          onClick={() => setConfirmApprove(false)}>
-          <div className="card" style={{ maxWidth: 420, width: "100%", padding: 28 }}
-            onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 17 }}>ยืนยันการอนุมัติ</h3>
-            <p style={{ margin: "0 0 20px", color: "var(--text-2)", fontSize: 14, lineHeight: 1.65 }}>
-              อนุมัติใบสมัครของ <b>{s.company}</b> เลขที่ <span className="mono">{s.id}</span>?<br />
-              หลังอนุมัติแล้วสถานะจะเปลี่ยนเป็น "อนุมัติ" และ Vendor จะเห็นผลในหน้าตรวจสอบสถานะ
-            </p>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button className="btn btn-ghost" onClick={() => setConfirmApprove(false)}>ยกเลิก</button>
-              <button className="btn btn-primary" onClick={handleApprove}>
-                <Icon name="check" size={14} /> ยืนยันอนุมัติ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showRequestModal && (
-        <RequestDocsModal company={s.company}
-          onClose={() => setShowRequestModal(false)}
-          onSave={handleDocRequest} />
-      )}
-
       <button className="btn btn-ghost btn-sm" onClick={() => goto("admin-submissions")}
         style={{ marginBottom: 14 }}>
         <Icon name="arrowLeft" size={14} /> รายการใบสมัคร
@@ -748,11 +662,8 @@ function AdminDetail({ goto, id }) {
           <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
             <Avatar name={s.company} size={56} />
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4,
-                flexWrap: "wrap" }}>
+              <div style={{ marginBottom: 4 }}>
                 <span className="mono" style={{ fontSize: 12.5, color: "var(--text-3)" }}>{s.id}</span>
-                <span style={{ color: "var(--text-3)" }}>·</span>
-                <StatusChip status={s.status} />
               </div>
               <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>{s.company}</h1>
               <div style={{ display: "flex", alignItems: "center", gap: 10,
@@ -770,126 +681,53 @@ function AdminDetail({ goto, id }) {
               </div>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {status !== "approved" && (
-              <button className="btn btn-ghost btn-sm"
-                onClick={() => setShowRequestModal(true)}>
-                <Icon name="paperclip" size={14} /> ขอเอกสารเพิ่ม
-              </button>
-            )}
-            {status === "approved" ? (
-              <span className="chip-status st-approved" style={{ padding: "6px 14px", fontSize: 13 }}>
-                อนุมัติแล้ว
-              </span>
-            ) : (
-              <button className="btn btn-primary btn-sm" onClick={() => setConfirmApprove(true)}>
-                <Icon name="check" size={14} /> อนุมัติ
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: "1px solid var(--line)" }}>
-        {[
-          { id: "info",       label: "ข้อมูลบริษัท" },
-          { id: "docs",       label: "เอกสารแนบ" },
-          { id: "extra-docs", label: `เอกสารเพิ่มเติม${docRequests.length > 0 ? ` (${docRequests.length})` : ""}`, show: requestingDocs },
-          { id: "history",    label: "ประวัติ" },
-        ].filter(t => t.id !== "extra-docs" || t.show).map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{
-              padding: "10px 16px", border: "none", background: "transparent",
-              borderBottom: tab === t.id ? "2px solid var(--primary)" : "2px solid transparent",
-              marginBottom: -1, color: tab === t.id ? "var(--text)" : "var(--text-3)",
-              fontWeight: tab === t.id ? 600 : 500, cursor: "pointer", fontSize: 14,
-            }}>{t.label}</button>
-        ))}
-      </div>
-
-      {tab === "info"       && <DetailInfo s={s} />}
-      {tab === "docs"       && <DetailDocs s={s} />}
-      {tab === "extra-docs" && <DetailExtraDocs docRequests={docRequests} setDocRequests={setDocRequests} />}
-      {tab === "history"    && <DetailHistory />}
+      <DetailInfo s={s} />
     </div>
   );
 }
 
 const DetailInfo = ({ s }) => {
   const { groups } = useData();
-  // Resolve category ID → display name
+  // Resolve category IDs → display names (supports multi-category)
   const catName = React.useMemo(() => {
-    if (!s.category) return "-";
+    const catIds = (s.categories && s.categories.length > 0)
+      ? s.categories
+      : (s.category ? [s.category] : []);
+    if (!catIds.length) return "-";
     const all = groups && groups.length > 0 ? groups : VENDOR_CATEGORIES;
-    const found = all.find(g => g.id === s.category);
-    return found ? found.th : s.category;
-  }, [s.category, groups]);
+    return catIds.map(cid => all.find(g => g.id === cid)?.th || cid).join(', ');
+  }, [s.categories, s.category, groups]);
 
   const fullAddress = [s.address, s.subDistrict ? `แขวง${s.subDistrict}` : "", s.district ? `เขต${s.district}` : ""]
     .filter(Boolean).join(" ") || "-";
   const provincePostal = [s.province, s.postcode].filter(Boolean).join(" ") || "-";
 
   return (
-  <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) 1fr", gap: 16 }}>
-    <div className="card" style={{ padding: 24 }}>
-      <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600 }}>ข้อมูลบริษัท</h3>
-      <InfoGrid rows={[
-        ["ชื่อ Vendor",           s.company || "-"],
-        ["เลขผู้เสียภาษี",        s.taxId || "-", true],
-        ["ประกาศที่สมัคร",        s.annoId || "-", true],
-        ["ประเภทกลุ่มงาน",        catName],
-        ["ทุนจดทะเบียน",          s.capital ? s.capital + " บาท" : "-"],
-        ["ระยะเวลาทำธุรกิจ",      s.yearsInBusiness ? s.yearsInBusiness + " ปี" : "-"],
-        ["ที่อยู่",               fullAddress],
-        ["จังหวัด / รหัสไปรษณีย์", provincePostal],
-        ["โทรศัพท์บริษัท",        s.phone || "-", true],
-        ["โทรศัพท์มือถือ",        s.mobile || "-", true],
-        ["อีเมลบริษัท",           s.companyEmail || "-", true],
-      ]} />
-      <h3 style={{ margin: "28px 0 16px", fontSize: 15, fontWeight: 600 }}>ผู้ติดต่อ</h3>
-      <InfoGrid rows={[
-        ["ชื่อ-นามสกุล", s.contact || "-"],
-        ["ตำแหน่ง",     s.position || "-"],
-        ["อีเมล",       s.email || "-", true],
-        ["โทรศัพท์",    s.contactPhone || "-", true],
-      ]} />
-    </div>
-
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div className="card" style={{ padding: 20 }}>
-        <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--primary)",
-          letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 12,
-          fontFamily: "var(--font-en)" }}>สถานะ</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-            <span style={{ color: "var(--text-3)" }}>ความครบถ้วนเอกสาร</span>
-            <span className="num" style={{ fontWeight: 600 }}>{s.completeness}%</span>
-          </div>
-          <Progress value={s.completeness} />
-          <div style={{ height: 1, background: "var(--line)", margin: "6px 0" }} />
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-            <span style={{ color: "var(--text-3)" }}>เอกสารแนบ</span>
-            <span className="num">{s.docs} / {s.docs + s.missing}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-            <span style={{ color: "var(--text-3)" }}>ผู้รับผิดชอบ</span>
-            <span style={{ fontWeight: 500 }}>คุณอาภา</span>
-          </div>
-        </div>
-      </div>
-      <div className="card" style={{ padding: 20 }}>
-        <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--primary)",
-          letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 12,
-          fontFamily: "var(--font-en)" }}>บันทึกภายใน</div>
-        <textarea className="textarea" rows={4}
-          placeholder="เพิ่มความเห็นภายใน (ผู้สมัครจะไม่เห็น)"
-          defaultValue="ตรวจสอบประวัติผลงานเรียบร้อย รอเอกสารรับรองมาตรฐานการรักษาความปลอดภัย ฉบับล่าสุด" />
-        <button className="btn btn-soft btn-sm" style={{ marginTop: 10, width: "100%" }}>
-          บันทึก
-        </button>
-      </div>
-    </div>
+  <div className="card" style={{ padding: 24 }}>
+    <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600 }}>ข้อมูลบริษัท</h3>
+    <InfoGrid rows={[
+      ["ชื่อ Vendor",           s.company || "-"],
+      ["เลขผู้เสียภาษี",        s.taxId || "-", true],
+      ["ประกาศที่สมัคร",        s.annoId || "-", true],
+      ["ประเภทกลุ่มงาน",        catName],
+      ["ทุนจดทะเบียน",          s.capital ? s.capital + " บาท" : "-"],
+      ["ระยะเวลาทำธุรกิจ",      s.yearsInBusiness ? s.yearsInBusiness + " ปี" : "-"],
+      ["ที่อยู่",               fullAddress],
+      ["จังหวัด / รหัสไปรษณีย์", provincePostal],
+      ["โทรศัพท์บริษัท",        s.phone || "-", true],
+      ["โทรศัพท์มือถือ",        s.mobile || "-", true],
+      ["อีเมลบริษัท",           s.companyEmail || "-", true],
+    ]} />
+    <h3 style={{ margin: "28px 0 16px", fontSize: 15, fontWeight: 600 }}>ผู้ติดต่อ</h3>
+    <InfoGrid rows={[
+      ["ชื่อ-นามสกุล", s.contact || "-"],
+      ["ตำแหน่ง",     s.position || "-"],
+      ["อีเมล",       s.email || "-", true],
+      ["โทรศัพท์",    s.contactPhone || "-", true],
+    ]} />
   </div>
   );
 };
@@ -906,319 +744,8 @@ const InfoGrid = ({ rows }) => (
   </div>
 );
 
-const DetailDocs = ({ s }) => (
-  <div className="card" style={{ padding: 24 }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-      marginBottom: 16, gap: 16 }}>
-      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-        เอกสารที่แนบมา
-        <span style={{ color: "var(--text-3)", fontWeight: 400, marginLeft: 8 }}>
-          ({s.docs} ไฟล์)
-        </span>
-      </h3>
-      <button className="btn btn-primary btn-sm"
-        onClick={() => simDownload(`${s.id}_documents.zip`)}>
-        <Icon name="download" size={14} /> ดาวน์โหลดทั้งหมด (ZIP)
-      </button>
-    </div>
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {REQUIRED_DOCS.map((d, i) => {
-        const has = i < s.docs;
-        return (
-          <div key={d.id} style={{
-            display: "flex", alignItems: "center", gap: 14,
-            padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 10,
-            background: has ? "var(--surface)" : "var(--surface-2)",
-          }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 8,
-              background: has ? "var(--primary-soft)" : "var(--surface)",
-              color: has ? "var(--primary)" : "var(--text-3)",
-              display: "grid", placeItems: "center",
-            }}>
-              <Icon name="file" size={18} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 500, fontSize: 13.5 }}>
-                {d.th}{d.required && <span style={{ color: "var(--danger)" }}> *</span>}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--text-3)" }}>
-                {has ? (
-                  <span className="mono">
-                    {["PreQual_security.pdf","doc_cert.pdf","doc_pp20.pdf","doc_fin.pdf","doc_id.pdf","doc_iso.pdf","doc_port.pdf","doc_profile.pdf"][i]}
-                    {" · "}{[412, 245, 180, 1400, 320, 540, 2100, 880][i]} KB
-                  </span>
-                ) : "ยังไม่ได้แนบ"}
-              </div>
-            </div>
-            {has ? (
-              <>
-                <button className="btn btn-ghost btn-sm"
-                  onClick={() => alert(`แสดงเอกสาร: ${["PreQual_security.pdf","doc_cert.pdf","doc_pp20.pdf","doc_fin.pdf","doc_id.pdf","doc_iso.pdf","doc_port.pdf","doc_profile.pdf"][i]}`)}>
-                  <Icon name="eye" size={14} /> ดู
-                </button>
-                <button className="btn btn-ghost btn-sm"
-                  onClick={() => simDownload(["PreQual_security.pdf","doc_cert.pdf","doc_pp20.pdf","doc_fin.pdf","doc_id.pdf","doc_iso.pdf","doc_port.pdf","doc_profile.pdf"][i])}>
-                  <Icon name="download" size={14} />
-                </button>
-              </>
-            ) : (
-              <span className="chip-status st-rejected">ขาด</span>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  </div>
-);
-
-const DetailHistory = () => (
-  <div className="card" style={{ padding: 24 }}>
-    <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600 }}>ประวัติการดำเนินการ</h3>
-    {TIMELINE.map((t, i) => (
-      <div key={t.id} style={{ display: "grid", gridTemplateColumns: "20px 1fr",
-        gap: 14, padding: "10px 0", position: "relative" }}>
-        <div style={{ position: "relative" }}>
-          <div style={{ width: 12, height: 12, borderRadius: "50%",
-            background: i === TIMELINE.length - 1 ? "var(--primary)" : "var(--success)",
-            marginTop: 4, marginLeft: 4,
-            boxShadow: i === TIMELINE.length - 1
-              ? "0 0 0 4px var(--primary-soft)" : "0 0 0 4px var(--success-soft)" }} />
-          {i < TIMELINE.length - 1 ? (
-            <div style={{ position: "absolute", left: 9, top: 18, bottom: -10,
-              width: 2, background: "var(--line)" }} />
-          ) : null}
-        </div>
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between",
-            alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ fontSize: 14, fontWeight: 500 }}>{t.action}</div>
-            <div className="mono" style={{ fontSize: 11.5, color: "var(--text-3)" }}>{t.date}</div>
-          </div>
-          <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 2 }}>
-            <span style={{ color: "var(--text-3)" }}>โดย</span> {t.actor} — {t.note}
-          </div>
-        </div>
-      </div>
-    ))}
-  </div>
-);
 
 
-const RequestDocsModal = ({ company, onClose, onSave }) => {
-  const [items, setItems] = React.useState([{ id: Date.now(), name: "", desc: "", deadline: "" }]);
-  const addItem = () => setItems(prev => [...prev, { id: Date.now(), name: "", desc: "", deadline: "" }]);
-  const removeItem = (id) => setItems(prev => prev.filter(it => it.id !== id));
-  const updateItem = (id, key, val) => setItems(prev => prev.map(it => it.id === id ? { ...it, [key]: val } : it));
-  const canSave = items.some(it => it.name.trim());
-
-  const handleSave = () => {
-    const now = new Date().toLocaleString("th-TH");
-    const valid = items
-      .filter(it => it.name.trim())
-      .map(it => ({ ...it, requestedAt: now, uploaded: false, uploadedFiles: [] }));
-    onSave(valid);
-  };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,.4)",
-      backdropFilter: "blur(2px)", display: "flex", alignItems: "center",
-      justifyContent: "center", padding: 24 }}
-      onClick={onClose}>
-      <div className="card" style={{ width: "100%", maxWidth: 560, padding: 28,
-        maxHeight: "90vh", overflowY: "auto" }}
-        onClick={e => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div>
-            <h3 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 600 }}>ขอเอกสารเพิ่มเติม</h3>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--text-2)" }}>
-              ระบุเอกสารที่ต้องการให้ <b>{company}</b> อัปโหลดเพิ่มเติม
-            </p>
-          </div>
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose}>
-            <Icon name="x" size={16} />
-          </button>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
-          {items.map((it, i) => (
-            <div key={it.id} style={{ padding: "14px 16px", border: "1px solid var(--line)",
-              borderRadius: 10, background: "var(--surface)",
-              display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--primary)" }}>
-                  เอกสารที่ {i + 1}
-                </span>
-                {items.length > 1 && (
-                  <button className="btn btn-ghost btn-sm btn-icon" style={{ color: "var(--danger)" }}
-                    onClick={() => removeItem(it.id)}>
-                    <Icon name="trash" size={13} />
-                  </button>
-                )}
-              </div>
-              <div>
-                <label style={{ fontSize: 12.5, fontWeight: 500, color: "var(--text-2)",
-                  display: "block", marginBottom: 4 }}>
-                  ชื่อเอกสาร <span style={{ color: "var(--danger)" }}>*</span>
-                </label>
-                <input className="input" value={it.name}
-                  onChange={e => updateItem(it.id, "name", e.target.value)}
-                  placeholder="เช่น ใบรับรองมาตรฐาน ISO 9001" style={{ width: "100%" }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12.5, fontWeight: 500, color: "var(--text-2)",
-                  display: "block", marginBottom: 4 }}>
-                  รายละเอียด / คำแนะนำ
-                </label>
-                <input className="input" value={it.desc}
-                  onChange={e => updateItem(it.id, "desc", e.target.value)}
-                  placeholder="เช่น ต้องเป็นฉบับปัจจุบัน อายุไม่เกิน 1 ปี" style={{ width: "100%" }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12.5, fontWeight: 500, color: "var(--text-2)",
-                  display: "block", marginBottom: 4 }}>
-                  กำหนดส่ง (ไม่บังคับ)
-                </label>
-                <input className="input" type="date" value={it.deadline}
-                  onChange={e => updateItem(it.id, "deadline", e.target.value)}
-                  style={{ width: "100%" }} />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <button className="btn btn-ghost btn-sm"
-          style={{ width: "100%", borderStyle: "dashed", marginBottom: 20 }}
-          onClick={addItem}>
-          <Icon name="plus" size={14} /> เพิ่มรายการเอกสาร
-        </button>
-
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={!canSave}>
-            <Icon name="paperclip" size={14} /> ส่งคำขอไปยัง Vendor
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const DetailExtraDocs = ({ docRequests, setDocRequests }) => {
-  const inputRefs = React.useRef({});
-
-  const onFile = (id) => (e) => {
-    const list = [...(e.target.files || [])].map(f => ({
-      name: f.name,
-      size: `${(f.size / 1024).toFixed(0)} KB`,
-      uploadedAt: new Date().toLocaleString("th-TH"),
-    }));
-    setDocRequests(prev => prev.map(r =>
-      r.id === id ? { ...r, uploaded: true, uploadedFiles: [...r.uploadedFiles, ...list] } : r
-    ));
-    e.target.value = "";
-  };
-
-  if (docRequests.length === 0) {
-    return (
-      <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--text-3)" }}>
-        <Icon name="paperclip" size={32} style={{ display: "block", margin: "0 auto 12px" }} />
-        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>ยังไม่มีคำขอเอกสาร</div>
-        <div style={{ fontSize: 12.5 }}>กดปุ่ม "ขอเอกสารเพิ่ม" เพื่อส่งคำขอไปยัง Vendor</div>
-      </div>
-    );
-  }
-
-  const uploadedCount = docRequests.filter(r => r.uploaded).length;
-
-  return (
-    <div className="card" style={{ padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-        marginBottom: 18, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 600 }}>เอกสารเพิ่มเติม</h3>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--text-2)" }}>
-            รายการเอกสารที่ EnCo ขอเพิ่มเติมจาก Vendor
-          </p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
-          background: uploadedCount === docRequests.length ? "var(--success-soft)" : "var(--warn-soft)",
-          borderRadius: 8, fontSize: 12.5, fontWeight: 500,
-          color: uploadedCount === docRequests.length ? "oklch(38% 0.11 155)" : "oklch(45% 0.12 70)" }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "currentColor",
-            display: "inline-block" }} />
-          อัปโหลดแล้ว {uploadedCount} / {docRequests.length} รายการ
-        </div>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {docRequests.map((req) => (
-          <div key={req.id} style={{
-            border: `1px solid ${req.uploaded ? "oklch(75% 0.10 155)" : "var(--line)"}`,
-            borderRadius: 12, overflow: "hidden",
-          }}>
-            <div style={{ padding: "14px 16px", display: "flex", gap: 12, alignItems: "flex-start",
-              background: req.uploaded ? "var(--success-soft)" : "var(--surface)" }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-                background: req.uploaded ? "oklch(38% 0.11 155 / .15)" : "var(--surface-2)",
-                color: req.uploaded ? "oklch(38% 0.11 155)" : "var(--text-3)",
-                display: "grid", placeItems: "center" }}>
-                <Icon name={req.uploaded ? "check" : "paperclip"} size={18} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{req.name}</div>
-                {req.desc && (
-                  <div style={{ fontSize: 12.5, color: "var(--text-2)", marginBottom: 2 }}>{req.desc}</div>
-                )}
-                {req.deadline && (
-                  <div style={{ fontSize: 12, color: "oklch(45% 0.12 70)", fontWeight: 500 }}>
-                    กำหนดส่ง: {req.deadline}
-                  </div>
-                )}
-                <div style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 3 }}>
-                  ขอเมื่อ {req.requestedAt}
-                </div>
-              </div>
-              <span className={`chip-status ${req.uploaded ? "st-approved" : "st-review"}`}
-                style={{ fontSize: 12, flexShrink: 0 }}>
-                {req.uploaded ? "อัปโหลดแล้ว" : "รอเอกสาร"}
-              </span>
-            </div>
-
-            {req.uploadedFiles.length > 0 && (
-              <div style={{ borderTop: "1px solid var(--line)", padding: "10px 16px",
-                background: "var(--surface)", display: "flex", flexDirection: "column", gap: 6 }}>
-                {req.uploadedFiles.map((f, fi) => (
-                  <div key={fi} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
-                    <Icon name="file" size={14} style={{ color: "oklch(38% 0.11 155)", flexShrink: 0 }} />
-                    <span className="mono" style={{ flex: 1, overflow: "hidden",
-                      textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                    <span style={{ fontSize: 12, color: "var(--text-3)", flexShrink: 0 }}>{f.size}</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => simDownload(f.name)}>
-                      <Icon name="download" size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div style={{ borderTop: "1px solid var(--line)", padding: "9px 16px",
-              background: "var(--surface-2)", fontSize: 12, color: "var(--text-3)" }}>
-              <b style={{ color: "var(--text-2)" }}>ทดสอบ:</b>{" "}
-              <button onClick={() => inputRefs.current[req.id]?.click()}
-                style={{ color: "var(--primary)", background: "none", border: "none",
-                  cursor: "pointer", font: "inherit", textDecoration: "underline", padding: 0 }}>
-                จำลองการอัปโหลดจาก Vendor
-              </button>
-              <input ref={el => inputRefs.current[req.id] = el}
-                type="file" multiple style={{ display: "none" }} onChange={onFile(req.id)} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
 
 // ── Announcements management ────────────────────────────────────────────────
 function AdminAnnouncements({ goto }) {

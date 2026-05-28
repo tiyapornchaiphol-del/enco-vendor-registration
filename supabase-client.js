@@ -7,6 +7,27 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ─── Fetch Functions ───
 
+// Parse categories field — supports JSON array string, already-parsed array, and legacy plain string
+function parseCategories(val) {
+  if (!val) return [];
+  // Already an array (Supabase jsonb column returns parsed JS value)
+  if (Array.isArray(val)) return val.filter(Boolean);
+  if (typeof val !== 'string') return [String(val)];
+  // Trim whitespace
+  const str = val.trim();
+  if (!str) return [];
+  // Try JSON parse
+  try {
+    const p = JSON.parse(str);
+    if (Array.isArray(p)) return p.filter(Boolean);
+    // JSON parsed but not an array (e.g., a number or object) → treat as string
+    return [str];
+  } catch (_) {
+    // Plain string (legacy single-category format)
+    return [str];
+  }
+}
+
 // Get all submissions
 async function getSubmissionsFromDb() {
   try {
@@ -18,32 +39,37 @@ async function getSubmissionsFromDb() {
     if (error) throw error;
 
     // Transform database format to app format
-    return (data || []).map(row => ({
-      id: row.id,
-      annoId: row.anno_id,
-      company: row.company,
-      taxId: row.tax_id,
-      category: row.category,
-      address: row.address,
-      subDistrict: row.sub_district,
-      district: row.district,
-      province: row.province,
-      postcode: row.postcode,
-      phone: row.phone,
-      mobile: row.mobile,
-      companyEmail: row.company_email,
-      capital: row.capital,
-      yearsInBusiness: row.years_in_business,
-      contact: row.contact_name,
-      position: row.contact_position,
-      email: row.contact_email,
-      contactPhone: row.contact_phone,
-      submittedAt: row.submitted_at,
-      status: row.status,
-      completeness: row.completeness,
-      docs: 6,
-      missing: 1
-    }));
+    return (data || []).map(row => {
+      const categories = parseCategories(row.category);
+      console.log(`📋 [submission ${row.id}] raw category =`, JSON.stringify(row.category), '→ parsed =', categories);
+      return {
+        id: row.id,
+        annoId: row.anno_id,
+        company: row.company,
+        taxId: row.tax_id,
+        categories,                  // full array (primary)
+        category: categories[0] || '', // first item — backward compat
+        address: row.address,
+        subDistrict: row.sub_district,
+        district: row.district,
+        province: row.province,
+        postcode: row.postcode,
+        phone: row.phone,
+        mobile: row.mobile,
+        companyEmail: row.company_email,
+        capital: row.capital,
+        yearsInBusiness: row.years_in_business,
+        contact: row.contact_name,
+        position: row.contact_position,
+        email: row.contact_email,
+        contactPhone: row.contact_phone,
+        submittedAt: row.submitted_at,
+        status: row.status,
+        completeness: row.completeness,
+        docs: 6,
+        missing: 1
+      };
+    });
   } catch (error) {
     console.error('Error fetching submissions:', error);
     return [];
@@ -189,7 +215,13 @@ async function createSubmissionInDb(submissionData) {
         anno_id: submissionData.annoId,
         company: submissionData.company,
         tax_id: submissionData.taxId,
-        category: submissionData.category,
+        // Store full categories array as JSON string in the `category` text column
+        category: (() => {
+          const cats = submissionData.categories;
+          const stored = Array.isArray(cats) ? JSON.stringify(cats) : (submissionData.category || '');
+          console.log('💾 [createSubmission] categories to store:', cats, '→ DB value:', stored);
+          return stored;
+        })(),
         address: submissionData.address,
         sub_district: submissionData.subDistrict,
         district: submissionData.district,

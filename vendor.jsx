@@ -10,6 +10,26 @@ function simDownload(filename, url) {
   URL.revokeObjectURL(a.href);
 }
 
+// Force-download a file from a URL (works around cross-origin download attribute limitation)
+async function forceDownload(url, filename) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("fetch failed");
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename || "prequalification.pdf";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  } catch (_) {
+    // fallback: open in new tab
+    window.open(url, "_blank");
+  }
+}
+
 function fmtDate(str) {
   if (!str) return "—";
   const d = new Date(str);
@@ -65,8 +85,8 @@ function VendorLanding({ goto }) {
               <Icon name="megaphone" size={16} /> ดูประกาศที่เปิดรับ
             </button>
             <button className="btn btn-ghost" style={{ borderColor: "rgba(255,255,255,.3)", color: "#fff" }}
-              onClick={() => goto("track")}>
-              <Icon name="track" size={16} /> ตรวจสอบสถานะ
+              onClick={() => goto("avl-registry")}>
+              <Icon name="building" size={16} /> ทะเบียนรายชื่อผู้ค้า
             </button>
           </div>
         </div>
@@ -97,29 +117,15 @@ function VendorLanding({ goto }) {
                 <h3 style={{ margin: "0 0 14px", fontSize: 20, fontWeight: 700,
                   letterSpacing: "-.005em", lineHeight: 1.3 }}>{a.title}</h3>
 
-                {/* Big date bar */}
-                <div style={{
-                  display: "inline-flex", alignItems: "center", gap: 0,
-                  background: "var(--primary-soft)",
-                  border: "1px solid var(--primary-border)",
-                  borderRadius: 12, overflow: "hidden", marginBottom: 16,
-                }}>
-                  <div style={{ padding: "12px 22px", textAlign: "center" }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--primary)",
-                      letterSpacing: ".08em", textTransform: "uppercase",
-                      fontFamily: "var(--font-en)", marginBottom: 4 }}>ตั้งแต่วันที่</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: "var(--primary-ink)",
-                      lineHeight: 1 }}>{fmtDate(a.openedAt)}</div>
-                  </div>
-                  <div style={{ width: 1, alignSelf: "stretch",
-                    background: "var(--primary-border)" }} />
-                  <div style={{ padding: "12px 22px", textAlign: "center" }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--primary)",
-                      letterSpacing: ".08em", textTransform: "uppercase",
-                      fontFamily: "var(--font-en)", marginBottom: 4 }}>ถึงวันที่</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: "var(--primary-ink)",
-                      lineHeight: 1 }}>{fmtDate(a.closedAt)}</div>
-                  </div>
+                {/* Date range — subtle inline */}
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 6,
+                  marginBottom: 14, fontSize: 13, color: "var(--text)",
+                  padding: "5px 10px", background: "var(--surface-2)",
+                  border: "1px solid var(--line)", borderRadius: 8 }}>
+                  <Icon name="track" size={13} style={{ color: "var(--text-3)" }} />
+                  <span>รับสมัคร {fmtDate(a.openedAt)}</span>
+                  <span style={{ color: "var(--text-3)" }}>—</span>
+                  <span>{fmtDate(a.closedAt)}</span>
                 </div>
 
                 {/* Summary */}
@@ -148,11 +154,10 @@ function VendorLanding({ goto }) {
                       return (
                         <div key={cid} style={{
                           display: "flex", alignItems: "center", gap: 12,
-                          padding: "12px 16px",
+                          padding: "11px 16px",
                           border: `1px solid ${hasFile ? "var(--primary-border)" : "var(--line)"}`,
                           background: hasFile ? "var(--primary-soft)" : "var(--surface-2)",
-                          borderRadius: 10,
-                          flexWrap: "wrap",
+                          borderRadius: 10, flexWrap: "wrap",
                         }}>
                           <span style={{ fontSize: 20 }}>{g.icon}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -160,45 +165,31 @@ function VendorLanding({ goto }) {
                               {g.th}
                             </div>
                             {hasFile && (
-                              <div style={{ fontSize: 11.5, color: "var(--primary)", marginTop: 2,
-                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              <div style={{ fontSize: 11.5, color: "var(--primary-ink)", marginTop: 2,
+                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                fontFamily: "var(--font-mono)" }}>
                                 {preqDoc.name}
                               </div>
                             )}
                           </div>
                           {hasFile ? (
-                            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                              {/* เปิดดูใน browser */}
-                              <a
-                                href={preqDoc.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-ghost btn-sm"
-                                style={{ textDecoration: "none" }}
-                                title="เปิดดูในหน้าต่างใหม่"
-                              >
-                                <Icon name="eye" size={13} />
-                                เปิดดู
-                              </a>
-                              {/* ดาวน์โหลด */}
-                              <a
-                                href={preqDoc.url}
-                                download={preqDoc.name}
-                                className="btn btn-soft btn-sm"
-                                style={{ textDecoration: "none" }}
-                                title="ดาวน์โหลดไฟล์"
-                              >
-                                <Icon name="download" size={13} />
-                                ดาวน์โหลด
-                              </a>
-                            </div>
+                            <button
+                              className="btn btn-sm"
+                              style={{
+                                flexShrink: 0, textDecoration: "none",
+                                background: "var(--primary)", color: "#fff",
+                                border: "none",
+                              }}
+                              onClick={() => forceDownload(preqDoc.url, preqDoc.name)}
+                              title={`ดาวน์โหลด ${preqDoc.name}`}
+                            >
+                              <Icon name="download" size={13} />
+                              ดาวน์โหลด
+                            </button>
                           ) : (
-                            <span style={{
-                              fontSize: 12, color: "var(--text-3)",
-                              padding: "5px 10px",
-                              border: "1px dashed var(--line)",
-                              borderRadius: 6, flexShrink: 0,
-                            }}>
+                            <span style={{ fontSize: 12, color: "var(--text-3)",
+                              padding: "5px 10px", border: "1px dashed var(--line)",
+                              borderRadius: 6, flexShrink: 0 }}>
                               ยังไม่มีไฟล์
                             </span>
                           )}
@@ -312,10 +303,11 @@ const validateEmail = (email) => {
 
 // ── Registration form (multi-step) ──────────────────────────────────────────
 function VendorForm({ goto, annoId }) {
-  const { groups, announcements } = useData();
+  const { groups, categories, announcements } = useData();
   const annList = announcements || ANNOUNCEMENTS;
-  const groupList = groups || VENDOR_CATEGORIES;
-  console.log('🎬 VendorForm init:', { annList: annList?.length, groupList: groupList?.length });
+  const groupList = (groups && groups.length > 0 ? groups : null)
+                 || (categories && categories.length > 0 ? categories : null)
+                 || VENDOR_CATEGORIES;
   const targetAnnc = annoId && annList.find(a => a.id === annoId)
     || annList.find(a => a.status === "open" || a.status === "closing");
   const allowedCatIds = targetAnnc?.categories || [];
@@ -323,7 +315,6 @@ function VendorForm({ goto, annoId }) {
     { id: "category", label: "ประเภทกลุ่มงาน" },
     { id: "company",  label: "ข้อมูลทั่วไป" },
     { id: "contact",  label: "ผู้ติดต่อ" },
-    { id: "docs",     label: "อัปโหลดเอกสาร" },
     { id: "review",   label: "ตรวจสอบ & ส่ง" },
   ];
   const [step, setStep] = React.useState(0);
@@ -347,10 +338,6 @@ function VendorForm({ goto, annoId }) {
     contactPhone: "",
   });
   const [errors, setErrors] = React.useState({});
-  const [files, setFiles] = React.useState({
-    general: { cert: null, pp20: null, fin: null, id: null, iso: null, profile: null },
-    groups: {}, // { [groupId]: { preq: File|null, works: [File|null, ...] } }
-  });
   const [submitted, setSubmitted] = React.useState(false);
   const [consent, setConsent] = React.useState(false);
   const [showErr, setShowErr] = React.useState(false);
@@ -365,6 +352,13 @@ function VendorForm({ goto, annoId }) {
     // Required check for all other fields
     if (!v) return "กรุณากรอกข้อมูลให้ครบถ้วน";
 
+    // Tax ID: exactly 13 digits
+    if (key === "taxId") {
+      const digits = v.replace(/\D/g, "");
+      if (digits.length !== 13) return "เลขประจำตัวผู้เสียภาษีต้องมี 13 หลัก";
+      return null;
+    }
+
     // Phone format validation
     if (key === "mobile" || key === "contactPhone") {
       return validatePhone(v);
@@ -378,22 +372,19 @@ function VendorForm({ goto, annoId }) {
     return null;
   };
 
-  // Update form and validate
+  // Update form and validate — functional updates to avoid stale-closure bugs
   const update = (k) => (e) => {
     let val = e.target?.value ?? e;
-    // Auto-format phone fields with dashes as user types
     if (k === "phone" || k === "mobile" || k === "contactPhone") {
       val = autoFormatPhone(val);
     }
-    setForm({ ...form, [k]: val });
+    setForm(f => ({ ...f, [k]: val }));
     const err = validateField(k, val);
-    if (err) {
-      setErrors({ ...errors, [k]: err });
-    } else {
-      const newErrors = { ...errors };
-      delete newErrors[k];
-      setErrors(newErrors);
-    }
+    setErrors(prev => {
+      const n = { ...prev };
+      if (err) n[k] = err; else delete n[k];
+      return n;
+    });
   };
 
   // Capital field — auto-comma (1,000,000) on input
@@ -409,73 +400,54 @@ function VendorForm({ goto, annoId }) {
     });
   };
 
-  // Step validation
-  const validateStep = (s) => {
+  // Pure validation — NO setState calls inside (calling setState during render causes infinite loop)
+  const validateStep = (s, f = form, c = consent) => {
     if (s === 0) {
-      return form.categories.length > 0
-        ? { ok: true }
-        : { ok: false, msg: "กรุณาเลือกอย่างน้อย 1 กลุ่มงาน" };
+      return f.categories.length > 0
+        ? { ok: true, errors: {} }
+        : { ok: false, msg: "กรุณาเลือกอย่างน้อย 1 กลุ่มงาน", errors: {} };
     }
     if (s === 1) {
       const need = ["vendorName","taxId","years","address","subDistrict",
         "district","province","postalCode","mobile","email","capital"];
       const newErrors = {};
-      const empty = [];
       need.forEach(k => {
-        const err = validateField(k, form[k]);
-        if (err) {
-          newErrors[k] = err;
-          empty.push(k);
-        }
+        const err = validateField(k, f[k]);
+        if (err) newErrors[k] = err;
       });
-      if (showErr) setErrors(newErrors);
-      return empty.length === 0
-        ? { ok: true }
-        : { ok: false, msg: "กรุณากรอกข้อมูลให้ครบถ้วน" };
+      return Object.keys(newErrors).length === 0
+        ? { ok: true, errors: {} }
+        : { ok: false, msg: "กรุณากรอกข้อมูลให้ครบถ้วน", errors: newErrors };
     }
     if (s === 2) {
       const need = ["contactName","contactPosition","contactEmail","contactPhone"];
       const newErrors = {};
-      const empty = [];
       need.forEach(k => {
-        const err = validateField(k, form[k]);
-        if (err) {
-          newErrors[k] = err;
-          empty.push(k);
-        }
+        const err = validateField(k, f[k]);
+        if (err) newErrors[k] = err;
       });
-      if (showErr) setErrors(newErrors);
-      return empty.length === 0
-        ? { ok: true }
-        : { ok: false, msg: "กรุณากรอกข้อมูลให้ครบถ้วน" };
+      return Object.keys(newErrors).length === 0
+        ? { ok: true, errors: {} }
+        : { ok: false, msg: "กรุณากรอกข้อมูลให้ครบถ้วน", errors: newErrors };
     }
     if (s === 3) {
-      const generalMissing = REQUIRED_DOCS.filter(d => !files.general[d.id]).length;
-      const selectedGroups = (groupList || []).filter(g => form.categories.includes(g.id));
-      let groupMissing = 0;
-      (selectedGroups || []).forEach(g => {
-        const gf = files.groups[g.id] || { preq: null, works: [] };
-        if (!gf.preq) groupMissing++;
-        const worksDone = (gf.works || []).filter(Boolean).length;
-        groupMissing += Math.max(0, (g.worksRequired || 0) - worksDone);
-      });
-      const total = generalMissing + groupMissing;
-      return total === 0
-        ? { ok: true }
-        : { ok: false, msg: `ยังไม่ได้แนบเอกสาร ${total} รายการ` };
+      return c
+        ? { ok: true, errors: {} }
+        : { ok: false, msg: "กรุณายอมรับเงื่อนไขก่อนส่งใบสมัคร", errors: {} };
     }
-    if (s === 4) {
-      return consent
-        ? { ok: true }
-        : { ok: false, msg: "กรุณายอมรับเงื่อนไขก่อนส่งใบสมัคร" };
-    }
-    return { ok: true };
+    return { ok: true, errors: {} };
   };
   const currentValid = validateStep(step);
 
   const goNext = () => {
-    if (!currentValid.ok) { setShowErr(true); return; }
+    const v = validateStep(step);
+    if (!v.ok) {
+      setShowErr(true);
+      if (Object.keys(v.errors).length > 0) setErrors(v.errors);
+      return;
+    }
     setShowErr(false);
+    setErrors({});
     setStep(s => Math.min(STEPS.length - 1, s + 1));
   };
   const goPrev = () => {
@@ -501,46 +473,15 @@ function VendorForm({ goto, annoId }) {
         .filter(g => form.categories.includes(g.id)).map(g => g.th).join(", ");
       const submittedAt = new Date().toLocaleString("th-TH");
 
-      // ── 2. รวบรวมไฟล์ทั้งหมด ──
-      const allFileEntries = []; // { label, file }
-      REQUIRED_DOCS.forEach(d => {
-        if (files.general[d.id] instanceof File)
-          allFileEntries.push({ label: d.th, file: files.general[d.id] });
-      });
-      (groupList || []).filter(g => form.categories.includes(g.id)).forEach(g => {
-        const gf = files.groups[g.id] || {};
-        if (gf.preq instanceof File)
-          allFileEntries.push({ label: `Pre-Q: ${g.th}`, file: gf.preq });
-        (gf.works || []).forEach((f, i) => {
-          if (f instanceof File)
-            allFileEntries.push({ label: `ผลงาน ${g.th} #${i + 1}`, file: f });
-        });
-      });
-
-      // ── 3. อัปโหลดไฟล์ → Supabase Storage ──
-      const fileLinks = []; // { label, url, name }
-      if (window.uploadFileToStorage && allFileEntries.length > 0) {
-        for (let i = 0; i < allFileEntries.length; i++) {
-          const { label, file } = allFileEntries[i];
-          setSubmitStep(`อัปโหลดเอกสาร ${i + 1}/${allFileEntries.length}...`);
-          try {
-            const result = await window.uploadFileToStorage(file, `submissions/${id}`);
-            fileLinks.push({ label, url: result.url, name: result.name });
-          } catch (uploadErr) {
-            console.error('Upload error:', label, uploadErr);
-            fileLinks.push({ label, url: null, name: file.name });
-          }
-        }
-      }
-
-      // ── 4. บันทึกข้อมูลใน Supabase Database (text เท่านั้น) ──
+      // ── 2. บันทึกข้อมูลใน Supabase Database (text เท่านั้น) ──
       setSubmitStep("กำลังบันทึกข้อมูล...");
+      console.log('📤 [submit] form.categories =', form.categories);
       const submissionData = {
         id,
         annoId: targetAnnc?.id || null,
         company: form.vendorName,
         taxId: form.taxId,
-        category: form.categories[0] || '',
+        categories: form.categories,   // full array — saved as JSON in DB
         address: form.address,
         subDistrict: form.subDistrict,
         district: form.district,
@@ -561,34 +502,6 @@ function VendorForm({ goto, annoId }) {
         await window.createSubmissionInDb(submissionData);
       }
 
-      // ── 5. แจ้ง Admin ผ่าน Power Automate ──
-      if (window.notifyAdminViaWebhook) {
-        setSubmitStep("กำลังแจ้ง Admin...");
-        const fileLinksText = fileLinks.length > 0
-          ? fileLinks.map(f => `• ${f.label}: ${f.url || '(upload ไม่สำเร็จ)'}`).join('\n')
-          : '(ไม่มีไฟล์)';
-        await window.notifyAdminViaWebhook({
-          submission_id:    id,
-          anno_id:          targetAnnc?.id || '-',
-          categories:       catNames,
-          submitted_at:     submittedAt,
-          company_name:     form.vendorName,
-          tax_id:           form.taxId,
-          capital:          form.capital,
-          years:            form.years,
-          address:          `${form.address} แขวง${form.subDistrict} เขต${form.district} ${form.province} ${form.postalCode}`,
-          phone:            form.phone,
-          mobile:           form.mobile,
-          company_email:    form.email,
-          contact_name:     form.contactName,
-          contact_position: form.contactPosition,
-          contact_email:    form.contactEmail,
-          contact_phone:    form.contactPhone,
-          doc_count:        String(fileLinks.length),
-          file_links:       fileLinksText,
-        });
-      }
-
       setSubmissionId(id);
       setSubmitted(true);
     } catch (error) {
@@ -600,14 +513,14 @@ function VendorForm({ goto, annoId }) {
     }
   };
 
-  if (submitted) return <SubmittedScreen goto={goto} submissionId={submissionId} />;
+  if (submitted) return <SubmittedScreen goto={goto} submissionId={submissionId} form={form} />;
 
   return (
     <div className="fade-in" style={{ maxWidth: 980, margin: "0 auto" }}>
       <SectionHeader
         eyebrow="Vendor Registration"
         title="ลงทะเบียนคู่ค้า EnCo"
-        desc="กรอกข้อมูล 5 ขั้นตอนเพื่อสมัครเป็นคู่ค้า ใช้เวลาประมาณ 10-15 นาที"
+        desc="กรอกข้อมูล 4 ขั้นตอนเพื่อสมัครเป็นคู่ค้า ใช้เวลาประมาณ 5-10 นาที"
         action={
           <button className="btn btn-ghost btn-sm" onClick={() => goto("landing")}>
             <Icon name="arrowLeft" size={14} /> กลับหน้าหลัก
@@ -640,8 +553,7 @@ function VendorForm({ goto, annoId }) {
         {step === 0 && <StepCategory form={form} setForm={setForm} annc={targetAnnc} />}
         {step === 1 && <StepCompany form={form} update={update} errors={errors} updateCapital={updateCapital} />}
         {step === 2 && <StepContact form={form} update={update} errors={errors} />}
-        {step === 3 && <StepDocs form={form} files={files} setFiles={setFiles} />}
-        {step === 4 && <StepReview form={form} files={files} consent={consent} setConsent={setConsent} />}
+        {step === 3 && <StepReview form={form} consent={consent} setConsent={setConsent} />}
       </div>
 
       {/* Nav */}
@@ -686,15 +598,18 @@ function VendorForm({ goto, annoId }) {
 }
 
 const StepCategory = ({ form, setForm, annc }) => {
-  const { groups } = useData();
-  const groupList = groups || VENDOR_CATEGORIES;
+  const { groups, categories } = useData();
+  const groupList = (groups && groups.length > 0 ? groups : null)
+                 || (categories && categories.length > 0 ? categories : null)
+                 || VENDOR_CATEGORIES;
   const activeAnnc = annc;
   // Show ONLY the categories that the announcement opens
   const availableGroups = groupList.filter(g => (activeAnnc?.categories || []).includes(g.id));
   const toggle = (id) => {
-    const has = form.categories.includes(id);
-    setForm({ ...form, categories: has ? form.categories.filter(c => c !== id)
-                                       : [...form.categories, id] });
+    setForm(f => {
+      const has = f.categories.includes(id);
+      return { ...f, categories: has ? f.categories.filter(c => c !== id) : [...f.categories, id] };
+    });
   };
   const selected = groupList.filter(g => form.categories.includes(g.id));
   return (
@@ -767,7 +682,9 @@ const StepCompany = ({ form, update, errors, updateCapital }) => (
         <input className="input" value={form.vendorName} onChange={update("vendorName")} style={{ borderColor: errors.vendorName ? "var(--danger)" : undefined }} />
       </Field>
       <Field label="เลขประจำตัวผู้เสียภาษี" required hint="13 หลัก ตามเอกสาร ภ.พ.20" error={errors.taxId}>
-        <input className="input mono" value={form.taxId} onChange={update("taxId")} style={{ borderColor: errors.taxId ? "var(--danger)" : undefined }} />
+        <input className="input mono" value={form.taxId} onChange={update("taxId")}
+          placeholder="0000000000000" maxLength={13}
+          style={{ borderColor: errors.taxId ? "var(--danger)" : undefined }} />
       </Field>
       <Field label="ระยะเวลาที่ทำธุรกิจ (ปี)" required error={errors.years}>
         <input className="input num" value={form.years} onChange={update("years")} style={{ borderColor: errors.years ? "var(--danger)" : undefined }} />
@@ -794,12 +711,12 @@ const StepCompany = ({ form, update, errors, updateCapital }) => (
       <Field label="รหัสไปรษณีย์" required error={errors.postalCode}>
         <input className="input mono" value={form.postalCode} onChange={update("postalCode")} style={{ borderColor: errors.postalCode ? "var(--danger)" : undefined }} />
       </Field>
-      <Field label="โทรศัพท์ (บริษัท)" hint="ไม่บังคับ — ขีดจะเติมอัตโนมัติ" error={errors.phone}>
+      <Field label="โทรศัพท์ (บริษัท)" hint="ไม่บังคับ" error={errors.phone}>
         <input className="input mono" value={form.phone} onChange={update("phone")}
           placeholder="02-1234-5678" maxLength={13}
           style={{ borderColor: errors.phone ? "var(--danger)" : undefined }} />
       </Field>
-      <Field label="โทรศัพท์มือถือ" required hint="ขีดจะเติมอัตโนมัติ" error={errors.mobile}>
+      <Field label="โทรศัพท์มือถือ" required error={errors.mobile}>
         <input className="input mono" value={form.mobile} onChange={update("mobile")}
           placeholder="081-234-5678" maxLength={12}
           style={{ borderColor: errors.mobile ? "var(--danger)" : undefined }} />
@@ -815,6 +732,87 @@ const StepCompany = ({ form, update, errors, updateCapital }) => (
     </div>
   </div>
 );
+
+const DocChecklist = ({ form, compact = false }) => {
+  const { groups, categories } = useData();
+  // `groups` starts as [] and is populated via useEffect (one render delay).
+  // Fall through to `categories` which is synced directly from Supabase.
+  const groupList = (groups && groups.length > 0 ? groups : null)
+                 || (categories && categories.length > 0 ? categories : null)
+                 || VENDOR_CATEGORIES;
+  const selectedGroups = groupList.filter(g => form.categories.includes(g.id));
+  const itemStyle = {
+    display: "flex", alignItems: "flex-start", gap: 8,
+    fontSize: compact ? 12.5 : 13, color: "var(--text-2)", lineHeight: 1.55,
+    padding: "4px 0",
+  };
+  const dotStyle = {
+    width: 6, height: 6, borderRadius: "50%",
+    background: "var(--primary)", flexShrink: 0, marginTop: 6,
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: compact ? 10 : 14 }}>
+      {/* General docs */}
+      <div>
+        <div style={{ fontSize: compact ? 11 : 11.5, fontWeight: 600, color: "var(--primary)",
+          letterSpacing: ".07em", textTransform: "uppercase",
+          fontFamily: "var(--font-en)", marginBottom: 8 }}>
+          เอกสารทั่วไป (ทุกบริษัทต้องส่ง)
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {REQUIRED_DOCS.map(d => (
+            <div key={d.id} style={itemStyle}>
+              <span style={dotStyle} />
+              <span>{d.th}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Per-group docs */}
+      {selectedGroups.length > 0 && (
+        <div>
+          <div style={{ fontSize: compact ? 11 : 11.5, fontWeight: 600, color: "var(--primary)",
+            letterSpacing: ".07em", textTransform: "uppercase",
+            fontFamily: "var(--font-en)", marginBottom: 8 }}>
+            เอกสารเฉพาะกลุ่มงานที่สมัคร
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {selectedGroups.map(g => (
+              <div key={g.id} style={{
+                padding: "10px 14px",
+                background: "var(--surface)",
+                border: "1px solid var(--line)",
+                borderRadius: 8,
+              }}>
+                <div style={{ fontWeight: 600, fontSize: compact ? 12.5 : 13,
+                  color: "var(--text)", marginBottom: 6, display: "flex",
+                  alignItems: "center", gap: 7 }}>
+                  <span style={{ fontSize: compact ? 15 : 17 }}>{g.icon}</span>
+                  <span>{g.th}</span>
+                </div>
+                <div style={itemStyle}>
+                  <span style={dotStyle} />
+                  <span>แบบฟอร์ม Pre-Qualification สำหรับกลุ่ม "{g.th}"</span>
+                </div>
+                <div style={itemStyle}>
+                  <span style={dotStyle} />
+                  <span>
+                    ผลงานที่ผ่านมา{" "}
+                    <b style={{ color: "var(--primary-ink)" }}>
+                      {g.worksRequired || 0} ผลงาน
+                    </b>
+                    {" "}(แนบเป็นไฟล์ PDF หรือรูปภาพ)
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const StepContact = ({ form, update, errors }) => (
   <div>
@@ -832,166 +830,53 @@ const StepContact = ({ form, update, errors }) => (
       <Field label="อีเมล" required error={errors.contactEmail}>
         <input className="input mono" value={form.contactEmail} onChange={update("contactEmail")} placeholder="email@example.com" style={{ borderColor: errors.contactEmail ? "var(--danger)" : undefined }} />
       </Field>
-      <Field label="โทรศัพท์มือถือ" required hint="ขีดจะเติมอัตโนมัติ" error={errors.contactPhone}>
+      <Field label="โทรศัพท์มือถือ" required error={errors.contactPhone}>
         <input className="input mono" value={form.contactPhone} onChange={update("contactPhone")}
           placeholder="081-234-5678" maxLength={12}
           style={{ borderColor: errors.contactPhone ? "var(--danger)" : undefined }} />
       </Field>
     </div>
+
+    {/* Email + document checklist banner */}
     <div style={{
-      marginTop: 20, padding: "12px 16px",
-      background: "var(--surface-2)", borderRadius: 10,
-      display: "flex", gap: 10, alignItems: "flex-start",
-      fontSize: 12.5, color: "var(--text-2)",
+      marginTop: 24, padding: "20px 24px",
+      background: "var(--primary-soft)",
+      border: "1px solid var(--primary-border)",
+      borderRadius: 12,
     }}>
-      <Icon name="track" size={14} style={{ color: "var(--text-3)", marginTop: 2, flexShrink: 0 }} />
-      <div>
-        <b style={{ color: "var(--text)" }}>หมายเหตุ:</b>{" "}
-        ผลงานที่ผ่านมาให้แนบเป็นไฟล์ในขั้นถัดไป (อัปโหลดเอกสาร)
-        โดยจะขอเอกสารผลงานแยกตามแต่ละกลุ่มงานที่สมัคร
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--surface)",
+          display: "grid", placeItems: "center", color: "var(--primary)", flexShrink: 0, marginTop: 2 }}>
+          <Icon name="paperclip" size={18} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 14.5, color: "var(--primary-ink)", marginBottom: 6 }}>
+            📎 เอกสารที่ต้องส่งทางอีเมล
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 12 }}>
+            หลังกรอกข้อมูลครบ กรุณาส่งเอกสารทั้งหมดด้านล่างนี้มาที่:{" "}
+            <span style={{
+              fontFamily: "var(--font-mono)", fontWeight: 600,
+              color: "var(--primary-ink)",
+            }}>procurement.enco@energycomplex.co.th</span>
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 14 }}>
+            <b>Subject:</b>{" "}
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5,
+              background: "var(--surface)", padding: "2px 8px", borderRadius: 5,
+              border: "1px solid var(--line)", color: "var(--text)" }}>
+              ลงทะเบียนคู่ค้า EnCo — {form.vendorName || "(ชื่อบริษัท)"}
+            </span>
+          </div>
+          <DocChecklist form={form} />
+        </div>
       </div>
     </div>
   </div>
 );
 
-const StepDocs = ({ form, files, setFiles }) => {
-  const { groups } = useData();
-  const groupList = groups || VENDOR_CATEGORIES;
-  const selectedGroups = groupList.filter(g => form.categories.includes(g.id));
 
-  // Helpers
-  const setGeneral = (id, file) => setFiles({
-    ...files,
-    general: { ...files.general, [id]: file },
-  });
-  const setGroupPreq = (gid, file) => setFiles({
-    ...files,
-    groups: { ...files.groups, [gid]: { ...(files.groups[gid] || { works: [] }), preq: file } },
-  });
-  const setGroupWork = (gid, idx, file) => {
-    const cur = files.groups[gid] || { preq: null, works: [] };
-    const works = [...cur.works];
-    works[idx] = file;
-    setFiles({
-      ...files,
-      groups: { ...files.groups, [gid]: { ...cur, works } },
-    });
-  };
-
-  // Counts for completeness
-  const generalDone = REQUIRED_DOCS.filter(d => files.general[d.id]).length;
-  const generalTotal = REQUIRED_DOCS.length;
-  let groupDone = 0, groupTotal = 0;
-  (selectedGroups || []).forEach(g => {
-    groupTotal += 1 + g.worksRequired; // preq + N works
-    const gf = files.groups[g.id];
-    if (gf?.preq) groupDone++;
-    if (gf?.works) groupDone += gf.works.filter(Boolean).length;
-  });
-  const totalDone = generalDone + groupDone;
-  const totalReq = generalTotal + groupTotal;
-
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start",
-        marginBottom: 24, gap: 24 }}>
-        <div>
-          <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 600 }}>อัปโหลดเอกสาร</h3>
-          <p style={{ margin: 0, color: "var(--text-2)", fontSize: 14 }}>
-            กรุณาแนบเอกสารให้ครบทุกรายการ <span style={{ color: "var(--danger)" }}>*</span> = จำเป็นต้องส่ง
-          </p>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div className="num" style={{ fontSize: 22, fontWeight: 600, color: "var(--primary)" }}>
-            {totalDone} / {totalReq}
-          </div>
-          <div style={{ fontSize: 12, color: "var(--text-3)" }}>แนบแล้ว</div>
-        </div>
-      </div>
-
-      {/* General docs */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 12 }}>
-          <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>เอกสารทั่วไป</h4>
-          <span style={{ fontSize: 12, color: "var(--text-3)" }}>
-            {generalDone}/{generalTotal} แนบแล้ว
-          </span>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {REQUIRED_DOCS.map(d => (
-            <FileSlot key={d.id} doc={d} file={files.general[d.id]}
-              onPick={(f) => setGeneral(d.id, f)}
-              onRemove={() => setGeneral(d.id, null)} />
-          ))}
-        </div>
-      </div>
-
-      {/* Per-group docs */}
-      {selectedGroups.length === 0 ? (
-        <div style={{
-          padding: "20px 24px", background: "var(--warn-soft)",
-          border: "1px solid oklch(85% 0.08 70)", borderRadius: 12,
-          fontSize: 13, color: "var(--text-2)", textAlign: "center",
-        }}>
-          <Icon name="bell" size={14} style={{ verticalAlign: "middle", marginRight: 6,
-            color: "oklch(50% 0.15 70)" }} />
-          กรุณากลับไปขั้นตอน "ประเภทกลุ่มงาน" และเลือกอย่างน้อย 1 กลุ่ม
-        </div>
-      ) : (selectedGroups || []).map(g => {
-        const gf = files.groups[g.id] || { preq: null, works: [] };
-        const works = gf.works || [];
-        const worksDone = works.filter(Boolean).length;
-        return (
-          <div key={g.id} style={{
-            marginBottom: 20, padding: 20,
-            background: "var(--surface-2)",
-            border: "1px solid var(--line)",
-            borderRadius: 12,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-              <span style={{ fontSize: 22 }}>{g.icon}</span>
-              <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{g.th}</h4>
-              <span className="pill" style={{ background: "var(--surface)",
-                color: "var(--text-3)", fontSize: 11 }}>
-                {(gf.preq ? 1 : 0) + worksDone} / {1 + g.worksRequired} แนบแล้ว
-              </span>
-            </div>
-            <div style={{ fontSize: 12.5, color: "var(--text-3)", marginBottom: 14 }}>
-              กลุ่ม "{g.th}" ขอเอกสาร Pre-Qualification 1 ไฟล์ และผลงาน {g.worksRequired} ผลงาน
-            </div>
-
-            {/* Pre-Qualification slot */}
-            <div style={{ marginBottom: 10 }}>
-              <FileSlot
-                doc={{ th: `Pre-Qualification ของ "${g.th}"`, required: true }}
-                file={gf.preq}
-                onPick={(f) => setGroupPreq(g.id, f)}
-                onRemove={() => setGroupPreq(g.id, null)} />
-            </div>
-
-            {/* Works slots */}
-            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-3)",
-              letterSpacing: ".05em", textTransform: "uppercase",
-              fontFamily: "var(--font-en)", marginTop: 14, marginBottom: 8 }}>
-              ผลงานที่ผ่านมา ({g.worksRequired} ผลงาน)
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {Array.from({ length: g.worksRequired }).map((_, i) => (
-                <FileSlot key={i}
-                  doc={{ th: `ผลงานที่ ${i + 1}`, required: true }}
-                  file={works[i]}
-                  onPick={(f) => setGroupWork(g.id, i, f)}
-                  onRemove={() => setGroupWork(g.id, i, null)} />
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-const StepReview = ({ form, files, consent, setConsent }) => {
+const StepReview = ({ form, consent, setConsent }) => {
   const { groups } = useData();
   const groupList = groups || VENDOR_CATEGORIES;
   const cats = groupList.filter(c => form.categories.includes(c.id)).map(c => c.th);
@@ -1039,64 +924,41 @@ const StepReview = ({ form, files, consent, setConsent }) => {
           <Row k="โทรศัพท์" v={form.contactPhone} mono />
         </Block>
         <div className="divider" />
-        <Block title="เอกสารทั่วไป">
-          {REQUIRED_DOCS.map(d => (
-            <React.Fragment key={d.id}>
-              <div style={{ color: "var(--text-3)" }}>
-                {d.th}<span style={{ color: "var(--danger)" }}> *</span>
+        {/* Email doc reminder with full checklist */}
+        <div style={{
+          padding: "20px 24px",
+          background: "var(--primary-soft)",
+          border: "1px solid var(--primary-border)",
+          borderRadius: 12,
+        }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--surface)",
+              display: "grid", placeItems: "center", color: "var(--primary)", flexShrink: 0, marginTop: 2 }}>
+              <Icon name="paperclip" size={16} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: "var(--primary-ink)", marginBottom: 6 }}>
+                📎 เอกสารที่ต้องส่งทางอีเมลหลังกด "ส่งใบสมัคร"
               </div>
-              <div>
-                {files.general[d.id] ? (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6,
-                    color: "oklch(38% 0.11 155)" }}>
-                    <Icon name="check" size={14} stroke={2.4} />
-                    <span className="mono" style={{ fontSize: 12.5 }}>{files.general[d.id].name}</span>
-                  </span>
-                ) : (
-                  <span style={{ color: "var(--danger)" }}>ยังไม่ได้แนบ</span>
-                )}
+              <div style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 6 }}>
+                ส่งมาที่:{" "}
+                <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600,
+                  color: "var(--primary-ink)" }}>
+                  procurement.enco@energycomplex.co.th
+                </span>
               </div>
-            </React.Fragment>
-          ))}
-        </Block>
-        {((groupList || []).filter(g => form.categories.includes(g.id)) || []).map(g => {
-          const gf = files.groups[g.id] || { preq: null, works: [] };
-          const works = gf.works || [];
-          return (
-            <React.Fragment key={g.id}>
-              <div className="divider" />
-              <Block title={`เอกสารกลุ่ม ${g.icon} ${g.th}`}>
-                <div style={{ color: "var(--text-3)" }}>
-                  Pre-Qualification<span style={{ color: "var(--danger)" }}> *</span>
-                </div>
-                <div>
-                  {gf.preq ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6,
-                      color: "oklch(38% 0.11 155)" }}>
-                      <Icon name="check" size={14} stroke={2.4} />
-                      <span className="mono" style={{ fontSize: 12.5 }}>{gf.preq.name}</span>
-                    </span>
-                  ) : (
-                    <span style={{ color: "var(--danger)" }}>ยังไม่ได้แนบ</span>
-                  )}
-                </div>
-                <div style={{ color: "var(--text-3)" }}>
-                  ผลงาน ({g.worksRequired} ผลงาน)<span style={{ color: "var(--danger)" }}> *</span>
-                </div>
-                <div>
-                  <span className="num" style={{
-                    color: works.filter(Boolean).length === g.worksRequired
-                      ? "oklch(38% 0.11 155)" : "var(--danger)",
-                    fontWeight: 500,
-                  }}>
-                    {works.filter(Boolean).length} / {g.worksRequired}
-                  </span>{" "}
-                  <span style={{ color: "var(--text-3)" }}>ไฟล์</span>
-                </div>
-              </Block>
-            </React.Fragment>
-          );
-        })}
+              <div style={{ fontSize: 12.5, color: "var(--text-2)", marginBottom: 14 }}>
+                <b>Subject:</b>{" "}
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12,
+                  background: "var(--surface)", padding: "2px 7px", borderRadius: 5,
+                  border: "1px solid var(--line)", color: "var(--text)" }}>
+                  ลงทะเบียนคู่ค้า EnCo — {form.vendorName || "(ชื่อบริษัท)"}
+                </span>
+              </div>
+              <DocChecklist form={form} compact />
+            </div>
+          </div>
+        </div>
         <label style={{ display: "flex", gap: 10, padding: 14,
           background: consent ? "var(--success-soft)" : "var(--surface-2)",
           border: `1px solid ${consent ? "oklch(82% 0.08 155)" : "var(--line)"}`,
@@ -1114,7 +976,7 @@ const StepReview = ({ form, files, consent, setConsent }) => {
   );
 };
 
-const SubmittedScreen = ({ goto, submissionId }) => (
+const SubmittedScreen = ({ goto, submissionId, form }) => (
   <div className="fade-in" style={{ maxWidth: 640, margin: "60px auto", textAlign: "center" }}>
     <div style={{
       width: 84, height: 84, margin: "0 auto 24px",
@@ -1131,14 +993,49 @@ const SubmittedScreen = ({ goto, submissionId }) => (
     <p style={{ margin: 0, color: "var(--text-3)", fontSize: 14 }}>
       เลขที่ใบสมัคร: <span className="mono" style={{ color: "var(--text)", fontWeight: 600 }}>{submissionId || "AVL-26-0142"}</span>
     </p>
-    <div className="card" style={{ padding: 20, margin: "32px 0", textAlign: "left" }}>
+
+    {/* Email reminder with checklist */}
+    <div style={{
+      margin: "24px 0 0",
+      padding: "20px 24px",
+      background: "var(--warn-soft)",
+      border: "1px solid oklch(85% 0.08 70)",
+      borderRadius: 12, textAlign: "left",
+    }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div style={{ fontSize: 24, lineHeight: 1, flexShrink: 0, marginTop: 2 }}>📎</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, color: "oklch(45% 0.12 70)", marginBottom: 6 }}>
+            อย่าลืม! ส่งเอกสารมาทางอีเมล
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 4 }}>
+            ส่งมาที่:{" "}
+            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600,
+              color: "oklch(45% 0.12 70)" }}>
+              procurement.enco@energycomplex.co.th
+            </span>
+          </div>
+          <div style={{ fontSize: 12.5, color: "var(--text-2)", marginBottom: 14 }}>
+            <b>Subject:</b>{" "}
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12,
+              background: "var(--surface)", padding: "2px 7px", borderRadius: 5,
+              border: "1px solid var(--line)", color: "var(--text)" }}>
+              ลงทะเบียนคู่ค้า EnCo — (ระบุชื่อบริษัท)
+            </span>
+          </div>
+          {form && <DocChecklist form={form} compact />}
+        </div>
+      </div>
+    </div>
+
+    <div className="card" style={{ padding: 20, margin: "20px 0", textAlign: "left" }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--primary)",
         letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 12,
         fontFamily: "var(--font-en)" }}>ขั้นตอนถัดไป</div>
       {[
-        "ฝ่ายจัดซื้อจะตรวจสอบเอกสารและคุณสมบัติภายใน 5-7 วันทำการ",
-        "หากเอกสารไม่ครบ ทีมงานจะติดต่อกลับทางอีเมลที่ระบุไว้",
-        "คุณสามารถตรวจสอบสถานะใบสมัครได้ที่หน้า 'ตรวจสอบสถานะ'",
+        "ส่งเอกสารประกอบการสมัครมาทางอีเมลที่แจ้งไว้ด้านบน",
+        "ฝ่ายจัดซื้อจะตรวจสอบข้อมูลและเอกสาร ภายใน 5-7 วันทำการ",
+        "ติดตามประกาศรายชื่อผู้ค้าที่ผ่านการคัดเลือกได้ที่หน้าทะเบียนรายชื่อผู้ค้า",
       ].map((t, i) => (
         <div key={i} style={{ display: "flex", gap: 12, padding: "8px 0", fontSize: 13.5 }}>
           <span className="num" style={{ width: 22, height: 22, borderRadius: "50%",
@@ -1149,8 +1046,8 @@ const SubmittedScreen = ({ goto, submissionId }) => (
       ))}
     </div>
     <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-      <button className="btn btn-primary" onClick={() => goto("track")}>
-        ตรวจสอบสถานะ <Icon name="arrowRight" size={14} />
+      <button className="btn btn-primary" onClick={() => goto("avl-registry")}>
+        <Icon name="building" size={14} /> ดูทะเบียนรายชื่อผู้ค้า
       </button>
       <button className="btn btn-ghost" onClick={() => goto("landing")}>กลับหน้าหลัก</button>
     </div>
@@ -1158,282 +1055,5 @@ const SubmittedScreen = ({ goto, submissionId }) => (
 );
 
 
-// ── Track status (no login — verify by ID + tax ID/email) ───────────────────
-function VendorTrack({ goto }) {
-  const data = useData();
-  const submissions = data?.submissions || [];
 
-  const [refNo, setRefNo] = React.useState("");
-  const [verify, setVerify] = React.useState("");
-  const [result, setResult] = React.useState(null);
-  const [error, setError] = React.useState("");
-
-  const search = () => {
-    setError("");
-    const ref = refNo.trim().toUpperCase();
-    const v = verify.trim().toLowerCase();
-    if (!ref || !v) {
-      setError("กรุณากรอกเลขที่ใบสมัครและเลขผู้เสียภาษี/อีเมล");
-      return;
-    }
-    const found = submissions.find(s =>
-      s.id.toUpperCase() === ref &&
-      (s.taxId === v || s.email?.toLowerCase() === v)
-    );
-    if (!found) {
-      setError("ไม่พบใบสมัคร — กรุณาตรวจสอบเลขที่ใบสมัครและข้อมูลยืนยันตัวตน");
-      setResult(null);
-    } else {
-      setResult(found);
-    }
-  };
-
-  return (
-    <div className="fade-in" style={{ maxWidth: 900, margin: "0 auto" }}>
-      <SectionHeader
-        eyebrow="Application Status"
-        title="ตรวจสอบสถานะใบสมัคร"
-        desc="ใส่เลขที่ใบสมัครพร้อมเลขผู้เสียภาษีหรืออีเมลที่ใช้ตอนสมัคร เพื่อตรวจสอบสถานะ — ไม่ต้องสมัครสมาชิก"
-        action={
-          <button className="btn btn-ghost btn-sm" onClick={() => goto("landing")}>
-            <Icon name="arrowLeft" size={14} /> กลับหน้าหลัก
-          </button>
-        } />
-
-      {/* Lookup form */}
-      <div className="card" style={{ padding: 24, marginBottom: 20 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 12,
-          alignItems: "flex-end" }}>
-          <Field label="เลขที่ใบสมัคร" required hint="ดูได้ในอีเมลยืนยันการสมัคร">
-            <input className="input mono" value={refNo} onChange={(e) => setRefNo(e.target.value)}
-              placeholder="AVL-26-XXXX" />
-          </Field>
-          <Field label="เลขผู้เสียภาษี หรือ อีเมล" required hint="ใช้ยืนยันตัวตน">
-            <input className="input mono" value={verify} onChange={(e) => setVerify(e.target.value)}
-              placeholder="0105556012345 หรือ contact@..." />
-          </Field>
-          <button className="btn btn-primary" onClick={search} style={{ height: "var(--row-h)" }}>
-            <Icon name="search" size={14} /> ตรวจสอบ
-          </button>
-        </div>
-
-        {error ? (
-          <div style={{
-            marginTop: 12, padding: "10px 14px",
-            background: "var(--danger-soft)", color: "oklch(42% 0.14 25)",
-            borderRadius: 8, fontSize: 13, display: "flex", gap: 8, alignItems: "center",
-          }}>
-            <Icon name="x" size={14} /> {error}
-          </div>
-        ) : null}
-
-        <div style={{
-          marginTop: 14, padding: "10px 14px",
-          background: "var(--surface-2)", borderRadius: 8,
-          fontSize: 12.5, color: "var(--text-2)", display: "flex", gap: 10, alignItems: "flex-start",
-        }}>
-          <Icon name="track" size={14} style={{ color: "var(--text-3)", marginTop: 2, flexShrink: 0 }} />
-          <div>ใส่เลขที่ใบสมัครที่ได้รับทางอีเมล พร้อมเลขผู้เสียภาษีหรืออีเมลที่ใช้ตอนสมัคร</div>
-        </div>
-      </div>
-
-      {result ? <TrackResult sub={result} /> : null}
-    </div>
-  );
-}
-
-const TrackResult = ({ sub }) => (
-  <>
-    <div className="card" style={{ padding: 28, marginBottom: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between",
-        alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 20 }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8,
-            flexWrap: "wrap" }}>
-            <span className="mono" style={{ fontSize: 12.5, color: "var(--text-3)" }}>{sub.id}</span>
-            <span style={{ color: "var(--text-3)", fontSize: 12 }}>·</span>
-            <StatusChip status={sub.status} />
-          </div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{sub.company}</h2>
-          <div style={{ color: "var(--text-2)", fontSize: 13.5, marginTop: 4 }}>
-            {sub.category} · ยื่นเมื่อ {sub.submittedAt}
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-          <div style={{ fontSize: 12, color: "var(--text-3)" }}>ความครบถ้วนเอกสาร</div>
-          <div style={{ width: 200 }}><Progress value={sub.completeness} /></div>
-        </div>
-      </div>
-
-      {/* Timeline */}
-      <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--primary)",
-        letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 14,
-        fontFamily: "var(--font-en)" }}>ประวัติการดำเนินการ</div>
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        {TIMELINE.map((t, i) => (
-          <div key={t.id} style={{ display: "grid", gridTemplateColumns: "20px 1fr",
-            gap: 14, padding: "10px 0", position: "relative" }}>
-            <div style={{ position: "relative" }}>
-              <div style={{
-                width: 12, height: 12, borderRadius: "50%",
-                background: i === TIMELINE.length - 1 ? "var(--primary)" : "var(--success)",
-                marginTop: 4, marginLeft: 4,
-                boxShadow: i === TIMELINE.length - 1
-                  ? "0 0 0 4px var(--primary-soft)" : "0 0 0 4px var(--success-soft)",
-              }} />
-              {i < TIMELINE.length - 1 ? (
-                <div style={{ position: "absolute", left: 9, top: 18, bottom: -10,
-                  width: 2, background: "var(--line)" }} />
-              ) : null}
-            </div>
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between",
-                alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 14, fontWeight: 500 }}>{t.action}</div>
-                <div className="mono" style={{ fontSize: 11.5, color: "var(--text-3)" }}>{t.date}</div>
-              </div>
-              <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 2 }}>
-                <span style={{ color: "var(--text-3)" }}>โดย</span> {t.actor} — {t.note}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-
-    {sub.status === "review" && sub.missing > 0 ? <UploadMore sub={sub} /> : null}
-    {sub.status === "approved" ? (
-      <div className="card" style={{
-        padding: 24, display: "flex", gap: 16, alignItems: "flex-start",
-        background: "var(--success-soft)", border: "1px solid oklch(82% 0.08 155)",
-      }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--surface)",
-          display: "grid", placeItems: "center", color: "oklch(38% 0.11 155)", flexShrink: 0 }}>
-          <Icon name="check" size={22} stroke={2.4} />
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 15, color: "oklch(38% 0.11 155)", marginBottom: 6 }}>
-            ทางเราได้รับเอกสารครบถ้วนแล้ว
-          </div>
-          <div style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.65 }}>
-            ใบสมัครของคุณได้รับการอนุมัติเบื้องต้นเรียบร้อยแล้ว
-            กรุณารอดูรายชื่อได้ที่หน้า{" "}
-            <b style={{ color: "oklch(38% 0.11 155)" }}>ทะเบียนรายชื่อผู้ค้า</b>{" "}
-            เมื่อ EnCo ประกาศรายชื่อผู้ที่ผ่านการคัดเลือก
-          </div>
-        </div>
-      </div>
-    ) : null}
-  </>
-);
-
-// Inline upload section shown when admin has requested more documents
-const UploadMore = ({ sub }) => {
-  const [uploads, setUploads] = React.useState([]);
-  const [note, setNote] = React.useState("");
-  const [sent, setSent] = React.useState(false);
-  const inputRef = React.useRef(null);
-
-  const onFile = (e) => {
-    const list = [...(e.target.files || [])].map(f => ({
-      name: f.name, size: `${(f.size / 1024).toFixed(0)} KB`,
-    }));
-    setUploads([...uploads, ...list]);
-    e.target.value = "";
-  };
-
-  if (sent) {
-    return (
-      <div className="card" style={{ padding: 20, display: "flex",
-        gap: 16, alignItems: "center",
-        background: "var(--success-soft)", border: "1px solid oklch(82% 0.08 155)" }}>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--surface)",
-          display: "grid", placeItems: "center", color: "oklch(38% 0.11 155)", flexShrink: 0 }}>
-          <Icon name="check" size={20} stroke={2.4} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, color: "oklch(38% 0.11 155)" }}>
-            ส่งเอกสารเพิ่มเติมเรียบร้อย
-          </div>
-          <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 2 }}>
-            ทีม EnCo จะตรวจสอบและแจ้งกลับทางอีเมลภายใน 3-5 วันทำการ
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="card" style={{
-      padding: 24, border: "1px solid var(--primary-border)",
-      background: "var(--primary-soft)",
-    }}>
-      <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 18 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--surface)",
-          display: "grid", placeItems: "center", color: "var(--primary)", flexShrink: 0 }}>
-          <Icon name="upload" size={18} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: 15, color: "var(--primary-ink)" }}>
-            ทีม EnCo ขอเอกสารเพิ่มเติม
-          </div>
-          <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 4 }}>
-            อัปโหลดเอกสารตามที่ทีมจัดซื้อร้องขอ คุณสามารถแนบหลายไฟล์พร้อมกันและเพิ่มหมายเหตุได้
-          </div>
-        </div>
-      </div>
-
-      {/* Uploads list */}
-      {uploads.length > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-          {uploads.map((f, i) => (
-            <div key={i} style={{
-              display: "flex", alignItems: "center", gap: 12,
-              padding: "10px 14px", background: "var(--surface)",
-              borderRadius: 8, border: "1px solid var(--line)",
-            }}>
-              <div style={{ width: 32, height: 32, borderRadius: 7,
-                background: "var(--success-soft)", color: "oklch(38% 0.11 155)",
-                display: "grid", placeItems: "center" }}>
-                <Icon name="check" size={16} stroke={2.4} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="mono" style={{ fontSize: 13, fontWeight: 500,
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
-                <div className="mono" style={{ fontSize: 11.5, color: "var(--text-3)" }}>{f.size}</div>
-              </div>
-              <button className="btn btn-ghost btn-sm btn-icon"
-                onClick={() => setUploads(uploads.filter((_, j) => j !== i))}>
-                <Icon name="x" size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      <input ref={inputRef} type="file" multiple style={{ display: "none" }} onChange={onFile} />
-      <button className="btn btn-ghost" style={{ width: "100%", borderStyle: "dashed",
-        background: "var(--surface)" }} onClick={() => inputRef.current?.click()}>
-        <Icon name="upload" size={14} /> {uploads.length ? "เพิ่มไฟล์อีก" : "เลือกไฟล์ที่ต้องการแนบ"}
-      </button>
-
-      <div style={{ marginTop: 14 }}>
-        <div className="label" style={{ marginBottom: 6 }}>
-          <span>หมายเหตุถึงทีมจัดซื้อ (ไม่บังคับ)</span>
-        </div>
-        <textarea className="textarea" rows={3} value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="เช่น 'แนบใบรับรอง ISO ฉบับล่าสุดตามที่ขอ + เพิ่มผลงานเสริม'" />
-      </div>
-
-      <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
-        <button className="btn btn-primary" onClick={() => setSent(true)}
-          disabled={uploads.length === 0}>
-          <Icon name="paperclip" size={14} /> ส่งเอกสารเพิ่ม ({uploads.length} ไฟล์)
-        </button>
-      </div>
-    </div>
-  );
-};
-
-Object.assign(window, { VendorLanding, VendorForm, VendorTrack });
+Object.assign(window, { VendorLanding, VendorForm });

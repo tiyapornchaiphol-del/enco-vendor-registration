@@ -60,11 +60,13 @@ class AppErrorBoundary extends React.Component {
   }
 }
 
-function AdminLoginForm({ onLogin, onCancel }) {
+// ── Admin Login Page (standalone full-page — accessed via #admin URL) ────────
+function AdminLoginPage({ onLogin }) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [err, setErr] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+  const [showPwd, setShowPwd] = React.useState(false);
 
   const login = async () => {
     if (!email.trim() || !password) { setErr("กรุณากรอกอีเมลและรหัสผ่าน"); return; }
@@ -78,61 +80,105 @@ function AdminLoginForm({ onLogin, onCancel }) {
     } catch (e) {
       console.error("Login error:", e);
       setErr("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="card" style={{ padding: 28 }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div>
-          <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)",
-            display: "block", marginBottom: 6 }}>อีเมล</label>
-          <input className="input" type="email" value={email}
-            onChange={e => setEmail(e.target.value)} placeholder="your@enco.co.th"
-            disabled={loading} onKeyDown={e => e.key === "Enter" && !loading && login()}
-            style={{ width: "100%" }} />
-        </div>
-        <div>
-          <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)",
-            display: "block", marginBottom: 6 }}>รหัสผ่าน</label>
-          <input className="input" type="password" value={password}
-            onChange={e => setPassword(e.target.value)} placeholder="••••••••"
-            disabled={loading} onKeyDown={e => e.key === "Enter" && !loading && login()}
-            style={{ width: "100%" }} />
-        </div>
-        {err && (
-          <div style={{ padding: "10px 14px", background: "var(--danger-soft)",
-            color: "oklch(42% 0.14 25)", borderRadius: 8, fontSize: 13,
-            display: "flex", gap: 8, alignItems: "center" }}>
-            ✕ {err}
+    <div style={{
+      minHeight: "100vh", background: "var(--bg)",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      padding: "24px 16px",
+    }}>
+      {/* Card */}
+      <div className="card fade-in" style={{ width: "100%", maxWidth: 400, padding: "40px 36px" }}>
+        {/* Logo & header */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <Logo />
+          <div style={{ marginTop: 20, padding: "6px 14px", display: "inline-block",
+            background: "var(--surface-2)", border: "1px solid var(--line)",
+            borderRadius: 8, fontSize: 12, color: "var(--text-3)",
+            fontFamily: "var(--font-en)", letterSpacing: ".04em" }}>
+            STAFF PORTAL
           </div>
-        )}
-        <button className="btn btn-primary" onClick={login} disabled={loading} style={{ marginTop: 4 }}>
-          {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
-        </button>
+          <p style={{ margin: "12px 0 0", fontSize: 13.5, color: "var(--text-2)" }}>
+            เข้าสู่ระบบสำหรับเจ้าหน้าที่ EnCo เท่านั้น
+          </p>
+        </div>
+
+        {/* Form */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <label style={{ fontSize: 12.5, fontWeight: 500, color: "var(--text-2)",
+              display: "block", marginBottom: 6 }}>อีเมล</label>
+            <input className="input" type="email" value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="your@enco.co.th" disabled={loading}
+              onKeyDown={e => e.key === "Enter" && !loading && login()}
+              style={{ width: "100%" }} autoFocus />
+          </div>
+          <div>
+            <label style={{ fontSize: 12.5, fontWeight: 500, color: "var(--text-2)",
+              display: "block", marginBottom: 6 }}>รหัสผ่าน</label>
+            <div style={{ position: "relative" }}>
+              <input className="input" type={showPwd ? "text" : "password"} value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••" disabled={loading}
+                onKeyDown={e => e.key === "Enter" && !loading && login()}
+                style={{ width: "100%", paddingRight: 40 }} />
+              <button onClick={() => setShowPwd(v => !v)}
+                style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--text-3)", padding: 4, display: "flex", alignItems: "center" }}
+                tabIndex={-1} type="button">
+                <Icon name={showPwd ? "eye" : "eye"} size={15} />
+              </button>
+            </div>
+          </div>
+
+          {err && (
+            <div style={{ padding: "10px 14px", background: "var(--danger-soft)",
+              color: "oklch(42% 0.14 25)", borderRadius: 8, fontSize: 13,
+              display: "flex", gap: 8, alignItems: "center" }}>
+              <Icon name="x" size={13} stroke={2.4} /> {err}
+            </div>
+          )}
+
+          <button className="btn btn-primary" onClick={login} disabled={loading}
+            style={{ marginTop: 4, height: 44, fontSize: 14.5 }}>
+            {loading
+              ? <><span style={{ display: "inline-block", width: 16, height: 16, border: "2px solid rgba(255,255,255,.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin .7s linear infinite" }} /> กำลังเข้าสู่ระบบ...</>
+              : "เข้าสู่ระบบ"
+            }
+          </button>
+        </div>
       </div>
-      <div style={{ textAlign: "center", marginTop: 16 }}>
-        <button onClick={onCancel}
-          style={{ fontSize: 13, color: "var(--text-3)", background: "none",
-            border: "none", cursor: "pointer", padding: 0 }}>
-          ← กลับหน้า Vendor Portal
-        </button>
-      </div>
+
+      {/* Footer */}
+      <p style={{ marginTop: 28, fontSize: 12, color: "var(--text-3)", textAlign: "center" }}>
+        EnCo Vendor Registration System · v2.6.0
+      </p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
 function App() {
   const [t, setTweak] = useTweaks(window.TWEAK_DEFAULTS);
+
+  // ── Admin route detection ─────────────────────────────────────────────────
+  // Admin area is ONLY accessible via the URL hash "#admin"
+  // Vendor portal has zero indication that an admin area exists
+  const [adminRoute] = React.useState(() => window.location.hash === "#admin");
+
   const [adminUser, setAdminUser] = React.useState(() => {
-    // Restore admin session from localStorage
+    // Restore admin session — only valid if user had come through #admin route
     try {
       const saved = localStorage.getItem("enco_admin_user");
       return saved ? JSON.parse(saved) : null;
     } catch (_e) { return null; }
   });
-  const [showAdminLogin, setShowAdminLogin] = React.useState(false);
   const isAdmin = adminUser !== null;
 
   // Restore last page from localStorage
@@ -142,6 +188,8 @@ function App() {
       const savedPage = localStorage.getItem("enco_page") || "landing";
       // Only restore admin pages if admin is logged in
       if (savedPage.startsWith("admin") && !isAdminSaved) return "landing";
+      // track page was removed — redirect to landing
+      if (savedPage === "track") return "landing";
       return savedPage;
     } catch (_e) { return "landing"; }
   });
@@ -221,9 +269,8 @@ function App() {
 
   // Vendor nav items
   const vendorNav = [
-    { id: "landing",      label: "ประกาศรับสมัคร",  icon: "megaphone" },
-    { id: "avl-registry", label: "ทะเบียนรายชื่อผู้ค้า",   icon: "building" },
-    { id: "track",        label: "ตรวจสอบสถานะ",        icon: "track" },
+    { id: "landing",      label: "ประกาศรับสมัคร",      icon: "megaphone" },
+    { id: "avl-registry", label: "ทะเบียนรายชื่อผู้ค้า", icon: "building" },
   ];
   const adminNav = [
     { id: "admin-dashboard",     label: "Dashboard",            icon: "dashboard" },
@@ -235,29 +282,25 @@ function App() {
   ];
   const nav = isAdmin ? adminNav : vendorNav;
 
+  // ── Standalone admin login page ───────────────────────────────────────────
+  // Shown ONLY when URL hash is #admin and no session exists.
+  // Vendor users who never visit #admin will never see this.
+  if (adminRoute && !isAdmin) {
+    return (
+      <DataContext.Provider value={dataValue}>
+        <div data-density={t.density} data-dark={t.dark ? "true" : "false"}>
+          <AdminLoginPage onLogin={(account) => {
+            setAdminUser(account);
+            setPage("admin-dashboard");
+          }} />
+        </div>
+      </DataContext.Provider>
+    );
+  }
+
   return (
     <DataContext.Provider value={dataValue}>
     <div data-density={t.density} data-dark={t.dark ? "true" : "false"}>
-      {showAdminLogin && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 9999,
-          background: "var(--bg)",
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-        }}>
-          <div style={{ width: "100%", maxWidth: 420 }}>
-            <div style={{ textAlign: "center", marginBottom: 32 }}>
-              <Logo />
-              <p style={{ margin: "14px 0 0", color: "var(--text-2)", fontSize: 14 }}>
-                เข้าสู่ระบบสำหรับเจ้าหน้าที่ EnCo
-              </p>
-            </div>
-            <AdminLoginForm onLogin={(account) => {
-              if (account) setAdminUser(account);
-              setShowAdminLogin(false);
-            }} onCancel={() => setShowAdminLogin(false)} />
-          </div>
-        </div>
-      )}
       <div className="app-shell">
         {/* Sidebar */}
         <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
@@ -302,20 +345,19 @@ function App() {
                   <div style={{ fontSize: 11.5, color: "var(--text-3)" }}>{adminUser.role}</div>
                 </div>
                 <button className="btn btn-ghost btn-sm btn-icon" title="ออกจากระบบ"
-                  onClick={() => { setAdminUser(null); }}>
+                  onClick={() => {
+                    setAdminUser(null);
+                    // Clear session and return to vendor portal (no #admin hash)
+                    window.location.href = window.location.pathname;
+                  }}>
                   <Icon name="logout" size={14} />
                 </button>
               </div>
             ) : (
-              <div>
-                <div style={{ fontSize: 11.5, color: "var(--text-3)", padding: "0 4px", marginBottom: 10 }}>
-                  <div style={{ marginBottom: 4 }}>EnCo Vendor Portal</div>
-                  <div className="mono">v2.6.0 · © 2569</div>
-                </div>
-                <button className="btn btn-ghost btn-sm" style={{ width: "100%", fontSize: 12.5 }}
-                  onClick={() => setShowAdminLogin(true)}>
-                  <Icon name="logout" size={13} /> เข้าสู่ระบบเจ้าหน้าที่
-                </button>
+              // Vendor view: no admin login button — admin access is via #admin URL only
+              <div style={{ fontSize: 11.5, color: "var(--text-3)", padding: "0 4px" }}>
+                <div style={{ marginBottom: 2 }}>EnCo Vendor Portal</div>
+                <div className="mono">v2.6.0 · © 2569</div>
               </div>
             )}
           </div>
@@ -349,7 +391,6 @@ function App() {
           {page === "landing"             && <VendorLanding goto={goto} />}
           {page === "avl-registry"        && <VendorRegistry goto={goto} />}
           {page === "form"                && <VendorForm key={detailId || "default"} goto={goto} annoId={detailId} />}
-          {page === "track"               && <VendorTrack goto={goto} />}
           {page === "admin-dashboard"     && <AdminDashboard goto={goto} />}
           {page === "admin-submissions"   && <AdminSubmissions goto={goto} />}
           {page === "admin-detail"        && <AdminDetail goto={goto} id={detailId} />}
@@ -379,7 +420,6 @@ function App() {
             <TweakButton label="ประกาศรับสมัคร" onClick={() => goto("landing")} />
             <TweakButton label="ทะเบียนรายชื่อผู้ค้า" onClick={() => goto("avl-registry")} />
             <TweakButton label="ฟอร์มสมัคร" onClick={() => goto("form")} />
-            <TweakButton label="ตรวจสอบสถานะ" onClick={() => goto("track")} />
           </>
         ) : (
           <>
@@ -400,7 +440,6 @@ const Breadcrumb = ({ page, detailId, role, goto }) => {
     "landing":             ["Vendor", "ประกาศรับสมัคร"],
     "avl-registry":        ["Vendor", "ทะเบียนรายชื่อผู้ค้า"],
     "form":                ["Vendor", "สมัครคู่ค้า"],
-    "track":               ["Vendor", "ตรวจสอบสถานะ"],
     "admin-dashboard":     ["Admin", "Dashboard"],
     "admin-submissions":   ["Admin", "ใบสมัครคู่ค้า"],
     "admin-detail":        ["Admin", "ใบสมัครคู่ค้า", detailId || ""],
