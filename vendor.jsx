@@ -258,82 +258,85 @@ function VendorLanding({ goto }) {
 
       {/* Contact footer */}
       <div style={{
-        position: "relative", overflow: "hidden", borderRadius: 20,
-        background: "linear-gradient(135deg, var(--primary) 0%, oklch(32% 0.13 250) 100%)",
-        padding: "clamp(28px, 5vw, 44px) clamp(24px, 6vw, 52px)",
-        color: "#fff",
+        borderRadius: 20,
+        background: "linear-gradient(160deg, var(--primary-soft) 0%, var(--surface) 100%)",
+        border: "1px solid var(--primary-border)",
+        overflow: "hidden",
       }}>
-        {/* stripe pattern */}
-        <div className="stripe-bg" style={{ position: "absolute", inset: 0, opacity: .15, pointerEvents: "none" }} />
+        {/* Main section */}
+        <div style={{ padding: "clamp(32px, 6vw, 56px) clamp(24px, 6vw, 52px)", textAlign: "center" }}>
 
-        <div style={{ position: "relative", display: "flex", gap: 32, flexWrap: "wrap", alignItems: "center" }}>
-          {/* Left — heading */}
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8,
-              padding: "4px 12px", background: "rgba(255,255,255,.15)",
-              borderRadius: 999, fontSize: 12, fontWeight: 500, marginBottom: 14 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />
-              ติดต่อเรา
+          {/* Logo + org name */}
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 14,
+              background: "var(--primary)",
+              display: "grid", placeItems: "center",
+              boxShadow: "0 4px 14px -4px oklch(45% 0.13 250 / .35)",
+              overflow: "hidden", flexShrink: 0,
+            }}>
+              {settings.logoUrl
+                ? <img src={settings.logoUrl} alt={settings.orgName || "EnCo"}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : <span style={{ color: "#fff", fontWeight: 800, fontSize: 22,
+                    fontFamily: "var(--font-en)" }}>{(settings.logoInitials || "E")}</span>
+              }
             </div>
-            <h3 style={{ margin: "0 0 8px", fontSize: "clamp(20px, 3vw, 26px)", fontWeight: 700, lineHeight: 1.3 }}>
-              สอบถามข้อมูลเพิ่มเติม
-            </h3>
-            <p style={{ margin: 0, fontSize: 14, opacity: .85, lineHeight: 1.7, maxWidth: 400 }}>
-              ฝ่ายจัดซื้อ {settings.orgName || "EnCo"} ยินดีให้ข้อมูลและตอบข้อซักถามเกี่ยวกับการขึ้นทะเบียนคู่ค้า
-            </p>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontWeight: 800, fontSize: 20, color: "var(--text)", lineHeight: 1.2 }}>
+                {settings.orgName || "EnCo"}
+              </div>
+              <div style={{ fontSize: 12.5, color: "var(--text-3)", marginTop: 1 }}>
+                {settings.portalSubtitle || "Vendor Portal"}
+              </div>
+            </div>
           </div>
 
-          {/* Right — contact cards */}
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {/* Phone */}
-            <a href={`tel:${(settings.contactPhone || "").replace(/\s/g, "")}`}
-              style={{ display: "flex", alignItems: "center", gap: 14,
-                padding: "16px 22px", borderRadius: 14,
-                background: "rgba(255,255,255,.12)",
-                border: "1px solid rgba(255,255,255,.2)",
-                backdropFilter: "blur(8px)",
-                textDecoration: "none", color: "#fff",
-                transition: "background .15s",
+          {/* Tagline */}
+          <p style={{ margin: "0 auto 32px", maxWidth: 480, fontSize: 14.5,
+            color: "var(--text-2)", lineHeight: 1.8 }}>
+            {settings.orgFullName || "บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด"}<br />
+            ฝ่ายจัดซื้อยินดีให้ข้อมูลเกี่ยวกับการขึ้นทะเบียนคู่ค้า
+          </p>
+
+          {/* Contact chips */}
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <a href={`tel:${(settings.contactPhone || "").replace(/[\s-]/g, "")}`}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 10,
+                padding: "11px 20px", borderRadius: 999,
+                background: "var(--surface)", border: "1px solid var(--line)",
+                color: "var(--text)", textDecoration: "none", fontSize: 14, fontWeight: 500,
+                boxShadow: "var(--shadow-sm)", transition: "box-shadow .15s, border-color .15s",
               }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.2)"}
-              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,.12)"}>
-              <div style={{ width: 40, height: 40, borderRadius: 10,
-                background: "rgba(255,255,255,.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                📞
-              </div>
-              <div>
-                <div style={{ fontSize: 11, opacity: .75, marginBottom: 3, fontWeight: 500, letterSpacing: ".06em", textTransform: "uppercase" }}>โทรศัพท์</div>
-                <div className="mono" style={{ fontSize: 15, fontWeight: 700, letterSpacing: ".02em" }}>
-                  {settings.contactPhone || "02-123-4567 ต่อ 8801"}
-                </div>
-              </div>
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = "var(--shadow)"; e.currentTarget.style.borderColor = "var(--primary-border)"; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = "var(--shadow-sm)"; e.currentTarget.style.borderColor = "var(--line)"; }}>
+              <span style={{ fontSize: 17 }}>📞</span>
+              <span>{settings.contactPhone || "02-123-4567 ต่อ 8801"}</span>
             </a>
 
-            {/* Email */}
             <a href={`mailto:${settings.contactEmail || "procurement.enco@energycomplex.co.th"}`}
-              style={{ display: "flex", alignItems: "center", gap: 14,
-                padding: "16px 22px", borderRadius: 14,
-                background: "rgba(255,255,255,.12)",
-                border: "1px solid rgba(255,255,255,.2)",
-                backdropFilter: "blur(8px)",
-                textDecoration: "none", color: "#fff",
-                transition: "background .15s",
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 10,
+                padding: "11px 20px", borderRadius: 999,
+                background: "var(--surface)", border: "1px solid var(--line)",
+                color: "var(--text)", textDecoration: "none", fontSize: 14, fontWeight: 500,
+                boxShadow: "var(--shadow-sm)", transition: "box-shadow .15s, border-color .15s",
               }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.2)"}
-              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,.12)"}>
-              <div style={{ width: 40, height: 40, borderRadius: 10,
-                background: "rgba(255,255,255,.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                ✉️
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 11, opacity: .75, marginBottom: 3, fontWeight: 500, letterSpacing: ".06em", textTransform: "uppercase" }}>อีเมล</div>
-                <div className="mono" style={{ fontSize: 13, fontWeight: 700,
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>
-                  {settings.contactEmail || "procurement.enco@energycomplex.co.th"}
-                </div>
-              </div>
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = "var(--shadow)"; e.currentTarget.style.borderColor = "var(--primary-border)"; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = "var(--shadow-sm)"; e.currentTarget.style.borderColor = "var(--line)"; }}>
+              <span style={{ fontSize: 17 }}>✉️</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 280 }}>
+                {settings.contactEmail || "procurement.enco@energycomplex.co.th"}
+              </span>
             </a>
           </div>
+        </div>
+
+        {/* Copyright bar */}
+        <div style={{ borderTop: "1px solid var(--line)", padding: "14px 24px",
+          textAlign: "center", fontSize: 12.5, color: "var(--text-3)" }}>
+          {settings.orgFullName || "บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด"} · {settings.orgName || "EnCo"} © {new Date().getFullYear()}
         </div>
       </div>
     </div>
