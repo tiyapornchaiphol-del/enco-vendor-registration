@@ -174,7 +174,7 @@ function VendorLanding({ goto }) {
                           background: hasFile ? "var(--primary-soft)" : "var(--surface-2)",
                           borderRadius: 10,
                         }}>
-                          <span style={{ fontSize: 18, flexShrink: 0 }}>{g.icon}</span>
+                          <CatIcon icon={g.icon} size={18} style={{ flexShrink: 0, color: "var(--primary)" }} />
                           <div style={{ flex: 1, minWidth: 80, overflow: "hidden" }}>
                             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)",
                               lineHeight: 1.4 }}>
@@ -357,7 +357,8 @@ function VendorForm({ goto, annoId }) {
   });
   const [errors, setErrors] = React.useState({});
   const [submitted, setSubmitted] = React.useState(false);
-  const [consent, setConsent] = React.useState(false);
+  const [consent,      setConsent]      = React.useState(false);
+  const [pdpaConsent,  setPdpaConsent]  = React.useState(false);
   const [showErr, setShowErr] = React.useState(false);
 
   // Validate individual fields
@@ -444,9 +445,11 @@ function VendorForm({ goto, annoId }) {
         const err = validateField(k, f[k]);
         if (err) newErrors[k] = err;
       });
-      return Object.keys(newErrors).length === 0
-        ? { ok: true, errors: {} }
-        : { ok: false, msg: "กรุณากรอกข้อมูลให้ครบถ้วน", errors: newErrors };
+      if (Object.keys(newErrors).length > 0)
+        return { ok: false, msg: "กรุณากรอกข้อมูลให้ครบถ้วน", errors: newErrors };
+      if (!pdpaConsent)
+        return { ok: false, msg: "กรุณายอมรับนโยบายข้อมูลส่วนบุคคลก่อนดำเนินการต่อ", errors: {} };
+      return { ok: true, errors: {} };
     }
     if (s === 3) {
       return c
@@ -584,7 +587,8 @@ function VendorForm({ goto, annoId }) {
       <div className="card" style={{ padding: "28px 32px", marginBottom: 16 }}>
         {step === 0 && <StepCategory form={form} setForm={setForm} annc={targetAnnc} />}
         {step === 1 && <StepCompany form={form} update={update} errors={errors} updateCapital={updateCapital} />}
-        {step === 2 && <StepContact form={form} update={update} errors={errors} />}
+        {step === 2 && <StepContact form={form} update={update} errors={errors}
+            pdpaConsent={pdpaConsent} setPdpaConsent={setPdpaConsent} />}
         {step === 3 && <StepReview form={form} consent={consent} setConsent={setConsent} />}
       </div>
 
@@ -686,7 +690,7 @@ const StepCategory = ({ form, setForm, annc }) => {
                 style={{ marginTop: 2, accentColor: "var(--primary)" }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>{c.icon}</span>
+                  <CatIcon icon={c.icon} size={18} />
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{c.th}</span>
                 </div>
                 <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 4,
@@ -820,7 +824,7 @@ const DocChecklist = ({ form, compact = false }) => {
                 <div style={{ fontWeight: 600, fontSize: compact ? 12.5 : 13,
                   color: "var(--text)", marginBottom: 6, display: "flex",
                   alignItems: "center", gap: 7 }}>
-                  <span style={{ fontSize: compact ? 15 : 17 }}>{g.icon}</span>
+                  <CatIcon icon={g.icon} size={compact ? 15 : 17} />
                   <span>{g.th}</span>
                 </div>
                 <div style={itemStyle}>
@@ -846,7 +850,7 @@ const DocChecklist = ({ form, compact = false }) => {
   );
 };
 
-const StepContact = ({ form, update, errors }) => (
+const StepContact = ({ form, update, errors, pdpaConsent, setPdpaConsent }) => (
   <div>
     <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 600 }}>ผู้ติดต่อ</h3>
     <p style={{ margin: "0 0 24px", color: "var(--text-2)", fontSize: 14 }}>
@@ -868,6 +872,37 @@ const StepContact = ({ form, update, errors }) => (
           style={{ borderColor: errors.contactPhone ? "var(--danger)" : undefined }} />
       </Field>
     </div>
+
+    {/* PDPA Consent */}
+    <label style={{
+      display: "flex", gap: 12, padding: "16px 18px", marginTop: 22, cursor: "pointer",
+      background: pdpaConsent ? "oklch(96% 0.04 155)" : "var(--surface-2)",
+      border: `1.5px solid ${pdpaConsent ? "oklch(82% 0.08 155)" : "var(--line)"}`,
+      borderRadius: 12, transition: "background .15s, border-color .15s",
+    }}>
+      <input type="checkbox" checked={!!pdpaConsent}
+        onChange={(e) => setPdpaConsent(e.target.checked)}
+        style={{ accentColor: "var(--primary)", marginTop: 3, flexShrink: 0, width: 16, height: 16 }} />
+      <div style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.75 }}>
+        ข้าพเจ้าได้อ่านและรับทราบ{" "}
+        <b style={{ color: "var(--text)" }}>ประกาศความเป็นส่วนตัว (Privacy Notice)</b>
+        {" "}และยินยอมให้{" "}
+        <b style={{ color: "var(--text)" }}>บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด</b>
+        {" "}เก็บรวบรวม ใช้ หรือเปิดเผยข้อมูลส่วนบุคคลของข้าพเจ้าที่ให้ไว้
+        เพื่อวัตถุประสงค์ในการประสานงานลงทะเบียน
+        <br />
+        <span style={{ color: "var(--text-3)", fontSize: 13 }}>
+          ท่านสามารถอ่านรายละเอียดเกี่ยวกับข้อมูลส่วนบุคคล:{" "}
+        </span>
+        <a href="https://www.energycomplex.co.th/pdpa.php"
+          target="_blank" rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{ color: "var(--primary)", textDecoration: "underline",
+            fontWeight: 500, fontSize: 13 }}>
+          คลิ๊กที่นี่
+        </a>
+      </div>
+    </label>
 
     {/* Email + document checklist banner */}
     <div style={{

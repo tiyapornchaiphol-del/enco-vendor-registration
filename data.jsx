@@ -9,7 +9,7 @@ const REQUIRED_DOCS = [
   { id: "cert",   th: "หนังสือรับรองบริษัท (อายุไม่เกิน 6 เดือน)", required: true },
   { id: "pp20",   th: "ภ.พ.20 (ทะเบียนภาษีมูลค่าเพิ่ม)",            required: true },
   { id: "fin",    th: "งบการเงินย้อนหลัง 3 ปี",                       required: true },
-  { id: "id",     th: "สำเนาบัตรประชาชนกรรมการผู้มีอำนาจ",            required: true },
+  { id: "id",     th: "สำเนาบัตรประชาชนกรรมการผู้มีอำนาจ (โปรดปิดทับข้อมูลส่วนบุคคลอ่อนไหว)", required: true },
   { id: "iso",    th: "ใบรับรองมาตรฐาน (ISO, มอก. ฯลฯ)",              required: true },
   { id: "profile",th: "Company Profile",                              required: true },
 ];

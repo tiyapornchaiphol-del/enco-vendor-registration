@@ -1,49 +1,78 @@
 // Admin pages: Dashboard, Submissions list, Submission detail, Announcements management
 
 // Export submissions to Excel using SheetJS
-function exportToExcel(rows, announcements, annoId) {
+// opts: { annoId, catFilter:[], splitByGroup:bool }
+function exportToExcel(rows, announcements, groups, opts = {}) {
   if (!window.XLSX) { alert("ไม่สามารถ Export ได้ — กรุณาโหลดหน้าใหม่"); return; }
-  const annoMap = Object.fromEntries((announcements || []).map(a => [a.id, a.title]));
-  const data = rows.map(r => ({
-    // ── ข้อมูลการสมัคร ──
-    "เลขที่ใบสมัคร":          r.id,
-    "ประกาศที่สมัคร":         r.annoId || "-",
-    "ชื่อประกาศ":             annoMap[r.annoId] || "-",
-    "วันที่ยื่นสมัคร":         r.submittedAt,
-    // ── Step 1: ประเภทกลุ่มงาน ──
-    "ประเภทกลุ่มงาน":         (r.categories || [r.category]).filter(Boolean).join(', ') || '-',
-    // ── Step 2: ข้อมูลทั่วไป ──
-    "ชื่อ Vendor":            r.company,
-    "เลขผู้เสียภาษี":         r.taxId,
-    "ระยะเวลาทำธุรกิจ (ปี)": r.yearsInBusiness || "-",
-    "ที่อยู่":                r.address || "-",
-    "แขวง/ตำบล":             r.subDistrict || "-",
-    "เขต/อำเภอ":             r.district || "-",
-    "จังหวัด":               r.province || "-",
-    "รหัสไปรษณีย์":          r.postcode || "-",
-    "โทรศัพท์บริษัท":        r.phone || "-",
-    "โทรศัพท์มือถือ":        r.mobile || "-",
-    "อีเมลบริษัท":           r.companyEmail || "-",
-    "ทุนจดทะเบียน (บาท)":    r.capital || "-",
-    // ── Step 3: ผู้ติดต่อ ──
-    "ชื่อผู้ติดต่อ":          r.contact,
-    "ตำแหน่ง":               r.position || "-",
-    "อีเมลผู้ติดต่อ":        r.email,
-    "โทรศัพท์ผู้ติดต่อ":     r.contactPhone || "-",
-  }));
-  const ws = XLSX.utils.json_to_sheet(data);
-  ws["!cols"] = [
+  const { annoId = "all", catFilter = [], splitByGroup = false } = opts;
+  const annoMap  = Object.fromEntries((announcements || []).map(a => [a.id, a]));
+  const groupMap = Object.fromEntries((groups || []).map(g => [g.id, g]));
+
+  const COL_W = [
     {wch:16},{wch:14},{wch:50},{wch:16},
-    {wch:26},
-    {wch:32},{wch:17},{wch:14},{wch:38},{wch:14},{wch:14},{wch:18},{wch:11},{wch:14},{wch:14},{wch:28},{wch:20},
+    {wch:30},
+    {wch:32},{wch:17},{wch:14},{wch:38},{wch:14},{wch:14},{wch:18},{wch:11},
+    {wch:14},{wch:14},{wch:28},{wch:20},
     {wch:20},{wch:18},{wch:28},{wch:14},
   ];
+
+  const toRow = (r) => ({
+    "เลขที่ใบสมัคร":         r.id,
+    "รหัสประกาศ":            r.annoId || "-",
+    "ชื่อประกาศ":            annoMap[r.annoId]?.title || "-",
+    "วันที่ยื่นสมัคร":        r.submittedAt || "-",
+    "กลุ่มงาน":              (r.categories || [r.category]).filter(Boolean)
+                              .map(cid => groupMap[cid]?.th || cid).join(', ') || '-',
+    "ชื่อ Vendor":           r.company || "-",
+    "เลขผู้เสียภาษี":        r.taxId || "-",
+    "ระยะเวลาทำธุรกิจ (ปี)": r.yearsInBusiness || "-",
+    "ที่อยู่":               r.address || "-",
+    "แขวง/ตำบล":            r.subDistrict || "-",
+    "เขต/อำเภอ":            r.district || "-",
+    "จังหวัด":              r.province || "-",
+    "รหัสไปรษณีย์":         r.postcode || "-",
+    "โทรศัพท์บริษัท":       r.phone || "-",
+    "โทรศัพท์มือถือ":       r.mobile || "-",
+    "อีเมลบริษัท":          r.companyEmail || "-",
+    "ทุนจดทะเบียน (บาท)":   r.capital || "-",
+    "ชื่อผู้ติดต่อ":          r.contact || "-",
+    "ตำแหน่ง":              r.position || "-",
+    "อีเมลผู้ติดต่อ":        r.email || "-",
+    "โทรศัพท์ผู้ติดต่อ":    r.contactPhone || "-",
+  });
+
+  // Build safe filename from announcement title
+  const annoTitle = annoId !== "all"
+    ? (annoMap[annoId]?.title || annoId)
+    : "ทุกประกาศ";
+  const safeTitle = annoTitle.replace(/[\/\\:*?"<>|]/g, "-").substring(0, 38);
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "ใบสมัครคู่ค้า");
-  const suffix = annoId && annoId !== "all"
-    ? `_${annoId.replace(/\//g, "-")}`
-    : "_ทั้งหมด";
-  XLSX.writeFile(wb, `EnCo_Submissions${suffix}.xlsx`);
+
+  if (splitByGroup && (groups || []).length > 0) {
+    // One sheet per group
+    const usedGroups = (groups || []).filter(g =>
+      rows.some(r => (r.categories || [r.category]).includes(g.id))
+    );
+    (usedGroups.length > 0 ? usedGroups : [null]).forEach(g => {
+      const sheetRows = g ? rows.filter(r => (r.categories || [r.category]).includes(g.id)) : rows;
+      const ws = XLSX.utils.json_to_sheet(sheetRows.map(toRow));
+      ws["!cols"] = COL_W;
+      const sheetName = g
+        ? (g.th || g.id).replace(/[\/\\:*?"<>|\[\]]/g, "").substring(0, 28)
+        : "ทั้งหมด";
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+    XLSX.writeFile(wb, `EnCo_Submissions_${safeTitle}_แยกกลุ่ม.xlsx`);
+  } else {
+    const ws = XLSX.utils.json_to_sheet(rows.map(toRow));
+    ws["!cols"] = COL_W;
+    XLSX.utils.book_append_sheet(wb, ws, "ใบสมัครคู่ค้า");
+    const catSuffix = catFilter.length === 1
+      ? `_${(groupMap[catFilter[0]]?.th || catFilter[0]).replace(/[\/\\:*?"<>|]/g, "").substring(0, 20)}`
+      : "";
+    XLSX.writeFile(wb, `EnCo_Submissions_${safeTitle}${catSuffix}.xlsx`);
+  }
 }
 
 // Simulated download/view helper
@@ -205,7 +234,7 @@ function AdminDashboard({ goto }) {
               <div style={{ padding: "14px 20px", background: "var(--surface-2)",
                 borderBottom: "1px solid var(--line)",
                 display: "flex", gap: 12, alignItems: "center" }}>
-                <div style={{ fontSize: 22, lineHeight: 1 }}>{g.icon}</div>
+                <div style={{ fontSize: 22, lineHeight: 1, color: "var(--primary)" }}><CatIcon icon={g.icon} size={22} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 14.5,
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -316,80 +345,210 @@ const BarChart = ({ submissions = [] }) => {
 
 
 // ── Export modal ────────────────────────────────────────────────────────────
-function ExportModal({ onClose, announcements, submissions }) {
-  const [annoFilter, setAnnoFilter] = React.useState("all");
-
-  // Use submissions from context, fallback to SUBMISSIONS
+function ExportModal({ onClose, announcements, submissions, groups }) {
   const allSubmissions = submissions && submissions.length > 0 ? submissions : SUBMISSIONS;
+  const allGroups = groups && groups.length > 0 ? groups : VENDOR_CATEGORIES;
 
-  const filtered = allSubmissions.filter(s =>
-    annoFilter === "all" || s.annoId === annoFilter
-  );
+  const [annoFilter,   setAnnoFilter]   = React.useState("all");
+  const [catFilter,    setCatFilter]    = React.useState([]);   // [] = all groups
+  const [splitByGroup, setSplitByGroup] = React.useState(false);
+
+  const toggleCat = (id) => {
+    setCatFilter(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  const allCatsSelected = catFilter.length === 0;
+
+  // Rows that match announcement + category filters
+  const filtered = React.useMemo(() => {
+    return allSubmissions.filter(s => {
+      if (annoFilter !== "all" && s.annoId !== annoFilter) return false;
+      if (catFilter.length > 0) {
+        const cats = (s.categories || [s.category]).filter(Boolean);
+        if (!cats.some(c => catFilter.includes(c))) return false;
+      }
+      return true;
+    });
+  }, [allSubmissions, annoFilter, catFilter]);
+
+  // Breakdown per group for preview
+  const groupBreakdown = React.useMemo(() => {
+    return allGroups
+      .map(g => ({
+        ...g,
+        count: filtered.filter(s => (s.categories || [s.category]).includes(g.id)).length,
+      }))
+      .filter(g => g.count > 0);
+  }, [filtered, allGroups]);
+
+  // Filename preview
+  const annoTitle = annoFilter !== "all"
+    ? (announcements.find(a => a.id === annoFilter)?.title || annoFilter)
+    : "ทุกประกาศ";
+  const safeTitle = annoTitle.replace(/[\/\\:*?"<>|]/g, "-").substring(0, 35);
+  const filenamePrev = splitByGroup
+    ? `EnCo_Submissions_${safeTitle}_แยกกลุ่ม.xlsx`
+    : catFilter.length === 1
+      ? `EnCo_Submissions_${safeTitle}_${(allGroups.find(g => g.id === catFilter[0])?.th || catFilter[0]).substring(0, 16)}.xlsx`
+      : `EnCo_Submissions_${safeTitle}.xlsx`;
 
   const doExport = () => {
-    exportToExcel(filtered, announcements, annoFilter);
+    exportToExcel(filtered, announcements, allGroups, {
+      annoId: annoFilter, catFilter, splitByGroup,
+    });
     onClose();
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,.4)",
-      backdropFilter: "blur(2px)", display: "flex", alignItems: "center",
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,.45)",
+      backdropFilter: "blur(3px)", display: "flex", alignItems: "center",
       justifyContent: "center", padding: 24 }}
       onClick={onClose}>
-      <div className="card" style={{ width: "100%", maxWidth: 520, padding: 28 }}
+      <div className="card" style={{ width: "100%", maxWidth: 580,
+        padding: 28, maxHeight: "90vh", overflowY: "auto" }}
         onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between",
-          alignItems: "center", marginBottom: 22 }}>
+          alignItems: "flex-start", marginBottom: 24 }}>
           <div>
-            <h3 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 600 }}>
-              Export ข้อมูลผู้สมัคร
-            </h3>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--text-2)" }}>
-              ส่งออกเป็นไฟล์ Excel (.xlsx) ยกเว้นไฟล์แนบ
-            </p>
+            <h3 style={{ margin: "0 0 3px", fontSize: 17, fontWeight: 700 }}>Export ข้อมูลผู้สมัคร</h3>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--text-3)" }}>ส่งออกเป็นไฟล์ Excel (.xlsx)</p>
           </div>
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose}>
-            <Icon name="x" size={16} />
-          </button>
+          <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose}><Icon name="x" size={16} /></button>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {/* ① ประกาศ */}
           <div>
-            <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text-2)",
-              display: "block", marginBottom: 8 }}>
-              ประกาศที่ต้องการ Export
+            <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-3)",
+              letterSpacing: ".06em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
+              ① ประกาศ
             </label>
             <select className="select" value={annoFilter}
               onChange={e => setAnnoFilter(e.target.value)} style={{ width: "100%" }}>
               <option value="all">ทุกประกาศ</option>
               {announcements.map(a => (
                 <option key={a.id} value={a.id}>
-                  {a.id} — {a.title.length > 38 ? a.title.substring(0, 38) + "…" : a.title}
+                  {a.title.length > 55 ? a.title.substring(0, 55) + "…" : a.title}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Preview summary */}
-          <div style={{ padding: "16px", background: "var(--surface-2)",
-            borderRadius: 10, border: "1px solid var(--line)" }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
-              <span className="num" style={{ fontSize: 28, fontWeight: 700,
+          {/* ② กลุ่มงาน */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between",
+              alignItems: "center", marginBottom: 10 }}>
+              <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-3)",
+                letterSpacing: ".06em", textTransform: "uppercase" }}>
+                ② กลุ่มงาน
+              </label>
+              <button style={{ fontSize: 12, color: "var(--primary-ink)", background: "none",
+                border: "none", cursor: "pointer", padding: 0 }}
+                onClick={() => setCatFilter([])}>
+                {allCatsSelected ? "✓ ทั้งหมด" : "เลือกทั้งหมด"}
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr",
+              gap: 6, maxHeight: 200, overflowY: "auto",
+              border: "1px solid var(--line)", borderRadius: 10, padding: "10px 12px" }}>
+              {allGroups.map(g => {
+                const selected = allCatsSelected || catFilter.includes(g.id);
+                return (
+                  <label key={g.id} style={{
+                    display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+                    padding: "6px 8px", borderRadius: 7, fontSize: 13,
+                    background: catFilter.includes(g.id) ? "var(--primary-soft)" : "transparent",
+                    color: catFilter.includes(g.id) ? "var(--primary-ink)" : "var(--text)",
+                  }}>
+                    <input type="checkbox"
+                      checked={catFilter.includes(g.id)}
+                      onChange={() => toggleCat(g.id)}
+                      style={{ accentColor: "var(--primary)", width: 14, height: 14 }} />
+                    <CatIcon icon={g.icon} size={14} />
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis",
+                      whiteSpace: "nowrap" }}>{g.th}</span>
+                  </label>
+                );
+              })}
+            </div>
+            {!allCatsSelected && (
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-3)" }}>
+                เลือก {catFilter.length} กลุ่ม — กดปุ่ม "เลือกทั้งหมด" เพื่อยกเลิกตัวกรอง
+              </p>
+            )}
+          </div>
+
+          {/* ③ รูปแบบไฟล์ */}
+          <div>
+            <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-3)",
+              letterSpacing: ".06em", textTransform: "uppercase", display: "block", marginBottom: 10 }}>
+              ③ รูปแบบไฟล์
+            </label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { val: false, label: "แผ่นเดียว", desc: "รวมทุกกลุ่มงานใน Sheet เดียว" },
+                { val: true,  label: "แยก Sheet ตามกลุ่มงาน", desc: "1 กลุ่มงาน = 1 Sheet ใน Workbook เดียว" },
+              ].map(opt => (
+                <label key={String(opt.val)} style={{
+                  display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
+                  padding: "10px 14px", borderRadius: 10, border: "1.5px solid",
+                  borderColor: splitByGroup === opt.val ? "var(--primary)" : "var(--line)",
+                  background: splitByGroup === opt.val ? "var(--primary-soft)" : "var(--surface-2)",
+                }}>
+                  <input type="radio" checked={splitByGroup === opt.val}
+                    onChange={() => setSplitByGroup(opt.val)}
+                    style={{ accentColor: "var(--primary)", marginTop: 2 }} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13,
+                      color: splitByGroup === opt.val ? "var(--primary-ink)" : "var(--text)" }}>{opt.label}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 1 }}>{opt.desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div style={{ background: "var(--surface-2)", borderRadius: 10,
+            border: "1px solid var(--line)", padding: "14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 10 }}>
+              <span className="num" style={{ fontSize: 26, fontWeight: 700,
                 color: filtered.length > 0 ? "var(--primary)" : "var(--text-3)" }}>
                 {filtered.length}
               </span>
               <span style={{ fontSize: 13, color: "var(--text-3)" }}>ราย</span>
+              {groupBreakdown.length > 0 && (
+                <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: 4 }}>
+                  · {groupBreakdown.length} กลุ่มงาน
+                </span>
+              )}
             </div>
-            <div style={{ fontSize: 11.5, color: "var(--text-3)", lineHeight: 1.65 }}>
-              <b style={{ color: "var(--text-2)" }}>คอลัมน์ที่จะส่งออก:</b>{" "}
-              เลขที่ใบสมัคร · ประกาศ · ชื่อประกาศ · วันที่สมัคร · ประเภทกลุ่มงาน · ชื่อบริษัท · เลขผู้เสียภาษี · ระยะเวลา · ที่อยู่ · จังหวัด · รหัสไปรษณีย์ · โทรศัพท์ · อีเมลบริษัท · ทุนจดทะเบียน · ผู้ติดต่อ · ตำแหน่ง · อีเมลผู้ติดต่อ · โทรศัพท์ผู้ติดต่อ
+            {groupBreakdown.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {groupBreakdown.map(g => (
+                  <div key={g.id} style={{ display: "flex", alignItems: "center",
+                    gap: 8, fontSize: 12.5, color: "var(--text-2)" }}>
+                    <CatIcon icon={g.icon} size={13} />
+                    <span style={{ flex: 1 }}>{g.th}</span>
+                    <span className="num" style={{ fontWeight: 600, color: "var(--text)" }}>{g.count}</span>
+                    <span style={{ color: "var(--text-3)" }}>ราย</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--line-2)",
+              fontSize: 11.5, color: "var(--text-3)", display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name="file" size={12} />
+              <span className="mono" style={{ wordBreak: "break-all" }}>{filenamePrev}</span>
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+          {/* Actions */}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button className="btn btn-ghost" onClick={onClose}>ยกเลิก</button>
-            <button className="btn btn-primary" onClick={doExport}
-              disabled={filtered.length === 0}>
+            <button className="btn btn-primary" onClick={doExport} disabled={filtered.length === 0}>
               <Icon name="download" size={14} />
               Export{filtered.length > 0 ? ` (${filtered.length} ราย)` : ""}
             </button>
@@ -404,28 +563,44 @@ function ExportModal({ onClose, announcements, submissions }) {
 const PAGE_SIZE = 25;
 
 function AdminSubmissions({ goto }) {
-  const { announcements, submissions, setSubmissions } = useData();
+  const { announcements, submissions, setSubmissions, groups } = useData();
   const [annoFilter, setAnnoFilter] = React.useState("all");
+  const [catFilter,  setCatFilter]  = React.useState("all");
   const [search, setSearch] = React.useState("");
   const [showExport, setShowExport] = React.useState(false);
   const [page, setPage] = React.useState(1);
   const [refreshing, setRefreshing] = React.useState(false);
 
-  // Use submissions from context, fallback to SUBMISSIONS
   const allSubmissions = submissions && submissions.length > 0 ? submissions : SUBMISSIONS;
+  const allGroups = groups && groups.length > 0 ? groups : VENDOR_CATEGORIES;
 
-  const filtered = allSubmissions.filter(s =>
-    (annoFilter === "all" || s.annoId === annoFilter) &&
-    (search === "" || (s.company || "").includes(search) || s.id.includes(search) || (s.taxId || "").includes(search))
-  );
+  // Smart multi-field search
+  const matchesSearch = (s, q) => {
+    if (!q) return true;
+    const lq = q.toLowerCase();
+    return [
+      s.company, s.id, s.taxId, s.contact,
+      s.email, s.companyEmail, s.contactPhone, s.phone, s.mobile,
+      s.province, s.district, s.position,
+    ].some(v => v && String(v).toLowerCase().includes(lq));
+  };
 
-  // Reset to page 1 whenever filter/search changes
-  React.useEffect(() => { setPage(1); }, [annoFilter, search]);
+  const filtered = React.useMemo(() => allSubmissions.filter(s => {
+    if (annoFilter !== "all" && s.annoId !== annoFilter) return false;
+    if (catFilter !== "all") {
+      const cats = (s.categories || [s.category]).filter(Boolean);
+      if (!cats.includes(catFilter)) return false;
+    }
+    if (!matchesSearch(s, search)) return false;
+    return true;
+  }), [allSubmissions, annoFilter, catFilter, search]);
+
+  // Reset to page 1 whenever filters change
+  React.useEffect(() => { setPage(1); }, [annoFilter, catFilter, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Refresh data from Supabase
   const handleRefresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
@@ -436,10 +611,20 @@ function AdminSubmissions({ goto }) {
     setRefreshing(false);
   };
 
+  const clearAll = () => { setAnnoFilter("all"); setCatFilter("all"); setSearch(""); };
+  const hasFilter = annoFilter !== "all" || catFilter !== "all" || search !== "";
+  const annoTitle = annoFilter !== "all"
+    ? (announcements.find(a => a.id === annoFilter)?.title || annoFilter)
+    : null;
+
   return (
     <div className="fade-in">
       {showExport && (
-        <ExportModal announcements={announcements} submissions={allSubmissions} onClose={() => setShowExport(false)} />
+        <ExportModal
+          announcements={announcements}
+          submissions={allSubmissions}
+          groups={allGroups}
+          onClose={() => setShowExport(false)} />
       )}
 
       <SectionHeader
@@ -450,7 +635,7 @@ function AdminSubmissions({ goto }) {
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-ghost btn-sm" onClick={handleRefresh} disabled={refreshing}
               title="โหลดข้อมูลใหม่จากฐานข้อมูล">
-              <Icon name="track" size={14} style={{ animation: refreshing ? "spin .8s linear infinite" : "none" }} />
+              <Icon name="refresh" size={14} style={{ animation: refreshing ? "spin .8s linear infinite" : "none" }} />
               {refreshing ? "กำลังโหลด..." : "Refresh"}
             </button>
             <button className="btn btn-ghost btn-sm" onClick={() => setShowExport(true)}>
@@ -459,37 +644,17 @@ function AdminSubmissions({ goto }) {
           </div>
         } />
 
-      {/* Filters */}
-      <div className="card" style={{ padding: "12px 16px", marginBottom: 16,
-        display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
-        alignItems: "center" }}>
-        {/* Result count */}
-        <div style={{ fontSize: 13, color: "var(--text-3)" }}>
-          แสดง{" "}
-          <span className="num" style={{ fontWeight: 600, color: "var(--text)" }}>
-            {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)}
-          </span>
-          {" "}จาก{" "}
-          <span className="num" style={{ fontWeight: 600, color: "var(--text)" }}>{filtered.length}</span>
-          {" "}รายการ
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {/* Announcement filter */}
-          <select className="select" value={annoFilter}
-            onChange={e => setAnnoFilter(e.target.value)}
-            style={{ fontSize: 13, height: 34, minWidth: 155 }}>
-            <option value="all">ทุกประกาศ</option>
-            {announcements.map(a => (
-              <option key={a.id} value={a.id}>{a.id}</option>
-            ))}
-          </select>
+      {/* Filter bar */}
+      <div className="card" style={{ padding: "14px 16px", marginBottom: 16 }}>
+        {/* Row 1: search + dropdowns */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           {/* Search */}
           <div style={{ display: "flex", gap: 8, alignItems: "center",
             background: "var(--surface-2)", padding: "4px 10px", borderRadius: 8,
-            minWidth: 260, border: "1px solid var(--line)" }}>
-            <Icon name="search" size={14} style={{ color: "var(--text-3)" }} />
+            flex: "1 1 240px", minWidth: 200, border: "1px solid var(--line)" }}>
+            <Icon name="search" size={14} style={{ color: "var(--text-3)", flexShrink: 0 }} />
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="ค้นหาบริษัท, เลขที่ใบสมัคร, เลขผู้เสียภาษี..."
+              placeholder="ค้นหา: ชื่อบริษัท · ผู้ติดต่อ · อีเมล · โทรศัพท์ · จังหวัด · เลขผู้เสียภาษี..."
               style={{ flex: 1, border: "none", background: "transparent", outline: "none",
                 height: 30, fontSize: 13 }} />
             {search && (
@@ -500,6 +665,89 @@ function AdminSubmissions({ goto }) {
               </button>
             )}
           </div>
+
+          {/* Announcement dropdown — shows title */}
+          <select className="select" value={annoFilter}
+            onChange={e => setAnnoFilter(e.target.value)}
+            style={{ fontSize: 13, height: 38, flex: "0 0 auto", minWidth: 0, maxWidth: 260 }}>
+            <option value="all">ทุกประกาศ</option>
+            {announcements.map(a => (
+              <option key={a.id} value={a.id}>
+                {a.title.length > 42 ? a.title.substring(0, 42) + "…" : a.title}
+              </option>
+            ))}
+          </select>
+
+          {/* Group filter */}
+          <select className="select" value={catFilter}
+            onChange={e => setCatFilter(e.target.value)}
+            style={{ fontSize: 13, height: 38, flex: "0 0 auto", minWidth: 0, maxWidth: 180 }}>
+            <option value="all">ทุกกลุ่มงาน</option>
+            {allGroups.map(g => (
+              <option key={g.id} value={g.id}>{g.th}</option>
+            ))}
+          </select>
+
+          {hasFilter && (
+            <button className="btn btn-ghost btn-sm" onClick={clearAll}
+              style={{ color: "var(--danger)", whiteSpace: "nowrap", flexShrink: 0 }}>
+              <Icon name="x" size={13} /> ล้างตัวกรอง
+            </button>
+          )}
+        </div>
+
+        {/* Row 2: active filter chips + result count */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8,
+          marginTop: 10, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, color: "var(--text-3)" }}>
+            แสดง{" "}
+            <span className="num" style={{ fontWeight: 600, color: "var(--text)" }}>
+              {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)}
+            </span>
+            {" "}จาก{" "}
+            <span className="num" style={{ fontWeight: 600, color: "var(--text)" }}>{filtered.length}</span>
+            {" "}รายการ
+          </span>
+
+          {annoTitle && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12,
+              background: "var(--primary-soft)", color: "var(--primary-ink)", fontWeight: 500,
+              borderRadius: 20, padding: "3px 10px" }}>
+              <Icon name="megaphone" size={11} />
+              {annoTitle.length > 32 ? annoTitle.substring(0, 32) + "…" : annoTitle}
+              <button onClick={() => setAnnoFilter("all")}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0,
+                  display: "flex", alignItems: "center", color: "inherit", opacity: .7 }}>
+                <Icon name="x" size={11} />
+              </button>
+            </span>
+          )}
+          {catFilter !== "all" && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12,
+              background: "var(--surface-2)", color: "var(--text-2)", fontWeight: 500,
+              borderRadius: 20, padding: "3px 10px", border: "1px solid var(--line)" }}>
+              <CatIcon icon={allGroups.find(g => g.id === catFilter)?.icon} size={12} />
+              {allGroups.find(g => g.id === catFilter)?.th || catFilter}
+              <button onClick={() => setCatFilter("all")}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0,
+                  display: "flex", alignItems: "center", color: "inherit", opacity: .7 }}>
+                <Icon name="x" size={11} />
+              </button>
+            </span>
+          )}
+          {search && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12,
+              background: "var(--surface-2)", color: "var(--text-2)", fontWeight: 500,
+              borderRadius: 20, padding: "3px 10px", border: "1px solid var(--line)" }}>
+              <Icon name="search" size={11} />
+              "{search.length > 24 ? search.substring(0, 24) + "…" : search}"
+              <button onClick={() => setSearch("")}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0,
+                  display: "flex", alignItems: "center", color: "inherit", opacity: .7 }}>
+                <Icon name="x" size={11} />
+              </button>
+            </span>
+          )}
         </div>
       </div>
 
@@ -507,7 +755,10 @@ function AdminSubmissions({ goto }) {
       <div className="card" style={{ overflow: "hidden", marginBottom: totalPages > 1 ? 0 : undefined }}>
         {filtered.length === 0 ? (
           <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--text-3)", fontSize: 13.5 }}>
-            {search ? `ไม่พบรายการที่ตรงกับ "${search}"` : "ยังไม่มีใบสมัครในระบบ"}
+            {hasFilter
+              ? <><div style={{ marginBottom: 12 }}>ไม่พบรายการที่ตรงกับเงื่อนไข</div>
+                  <button className="btn btn-ghost btn-sm" onClick={clearAll}>ล้างตัวกรองทั้งหมด</button></>
+              : "ยังไม่มีใบสมัครในระบบ"}
           </div>
         ) : (
           <SubmissionsTable rows={rows} goto={goto} full />
@@ -858,7 +1109,7 @@ function AdminAnnouncements({ goto }) {
                         <span key={cid} className="pill" style={{
                           background: "var(--surface-2)", color: "var(--text-2)",
                           fontSize: 11.5, padding: "2px 8px",
-                        }}>{g.icon} {g.th}</span>
+                        }}><CatIcon icon={g.icon} size={13} /> {g.th}</span>
                       );
                     })}
                     {(a.categories || []).length > 3 ? (
@@ -1048,7 +1299,7 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
                 }}>
                   <input type="checkbox" checked={checked} onChange={() => toggleCat(g.id)}
                     style={{ accentColor: "var(--primary)" }} />
-                  <span style={{ fontSize: 14 }}>{g.icon}</span>
+                  <CatIcon icon={g.icon} size={16} />
                   <span style={{ fontWeight: 500, lineHeight: 1.2,
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.th}</span>
                 </label>
@@ -1109,7 +1360,7 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
                     background: preqDoc ? "var(--success-soft)" : "var(--surface)",
                     borderRadius: 8,
                   }}>
-                    <span style={{ fontSize: 16 }}>{g.icon}</span>
+                    <CatIcon icon={g.icon} size={16} />
                     <span style={{ flex: 1, fontWeight: 500, fontSize: 13 }}>{g.th}</span>
                     {preqDoc ? (
                       <>
@@ -1302,7 +1553,7 @@ function AdminGroups() {
                   </div>
                   <div style={{ width: 36, height: 36, borderRadius: 9,
                     background: "rgba(255,255,255,.7)", display: "grid", placeItems: "center",
-                    fontSize: 20 }}>{g.icon}</div>
+                    fontSize: 20, color: tints.num }}><CatIcon icon={g.icon} size={20} /></div>
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--text)",
@@ -1369,7 +1620,48 @@ const GroupEditor = ({ id, onClose, onSave }) => {
   const [v, setV] = React.useState(existing || {
     th: "", en: "", desc: "", icon: "🏷", worksRequired: 3,
   });
-  const iconOptions = ["🛡","🧹","🔧","🛠","🏗","⚡","📐","📦","🖥","🛎","💻","🌳","🚛","📋","🧰","🏷"];
+  const CATEGORY_ICONS = [
+    { name: "wrench",      label: "ซ่อมบำรุง" },
+    { name: "hammer",      label: "ก่อสร้าง" },
+    { name: "hardhat",     label: "งานโยธา" },
+    { name: "ruler",       label: "วิศวกรรม" },
+    { name: "settings",    label: "เครื่องจักร" },
+    { name: "zap",         label: "ไฟฟ้า" },
+    { name: "lightbulb",   label: "ระบบไฟ" },
+    { name: "plug",        label: "อุปกรณ์ไฟ" },
+    { name: "flame",       label: "เชื้อเพลิง" },
+    { name: "thermometer", label: "ระบบ HVAC" },
+    { name: "monitor",     label: "คอมพิวเตอร์" },
+    { name: "server",      label: "เซิร์ฟเวอร์" },
+    { name: "cpu",         label: "ฮาร์ดแวร์" },
+    { name: "database",    label: "ฐานข้อมูล" },
+    { name: "wifi",        label: "เครือข่าย" },
+    { name: "hardDrive",   label: "จัดเก็บข้อมูล" },
+    { name: "truck",       label: "ขนส่ง" },
+    { name: "car",         label: "ยานพาหนะ" },
+    { name: "package",     label: "คลังสินค้า" },
+    { name: "factory",     label: "การผลิต" },
+    { name: "leaf",        label: "ภูมิทัศน์" },
+    { name: "droplet",     label: "ระบบน้ำ" },
+    { name: "recycle",     label: "สิ่งแวดล้อม" },
+    { name: "briefcase",   label: "จัดซื้อ" },
+    { name: "clipboard",   label: "เอกสาร" },
+    { name: "folder",      label: "แฟ้ม" },
+    { name: "printer",     label: "พิมพ์" },
+    { name: "barChart",    label: "รายงาน" },
+    { name: "camera",      label: "ตรวจสอบ" },
+    { name: "paintbrush",  label: "ทาสี" },
+    { name: "shield",      label: "ความปลอดภัย" },
+    { name: "shieldCheck", label: "มาตรฐาน" },
+    { name: "lock",        label: "รักษาความปลอดภัย" },
+    { name: "key",         label: "บัตรผ่าน" },
+    { name: "globe",       label: "ต่างประเทศ" },
+    { name: "award",       label: "คุณภาพ" },
+    { name: "star",        label: "พิเศษ" },
+    { name: "cross",       label: "สุขภาพ" },
+    { name: "building",    label: "อาคาร" },
+    { name: "megaphone",   label: "ประชาสัมพันธ์" },
+  ];
   return (
     <div className="card" style={{ padding: 22, position: "sticky", top: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -1401,15 +1693,23 @@ const GroupEditor = ({ id, onClose, onSave }) => {
             placeholder="e.g. Landscaping" />
         </Field>
         <Field label="ไอคอน">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4 }}>
-            {iconOptions.map(ic => (
-              <button key={ic} onClick={() => setV({ ...v, icon: ic })}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 5 }}>
+            {CATEGORY_ICONS.map(({ name, label }) => (
+              <button key={name} onClick={() => setV({ ...v, icon: name })}
+                title={label}
                 style={{
-                  padding: 8, fontSize: 18, border: "1px solid",
-                  borderColor: v.icon === ic ? "var(--primary)" : "var(--line)",
-                  background: v.icon === ic ? "var(--primary-soft)" : "var(--surface)",
-                  borderRadius: 8, cursor: "pointer", lineHeight: 1,
-                }}>{ic}</button>
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  gap: 4, padding: "8px 4px", border: "1.5px solid",
+                  borderColor: v.icon === name ? "var(--primary)" : "var(--line)",
+                  background: v.icon === name ? "var(--primary-soft)" : "var(--surface)",
+                  borderRadius: 9, cursor: "pointer",
+                  color: v.icon === name ? "var(--primary)" : "var(--text-2)",
+                  transition: "border-color .15s, background .15s, color .15s",
+                }}>
+                <Icon name={name} size={18} />
+                <span style={{ fontSize: 9.5, lineHeight: 1, textAlign: "center",
+                  fontFamily: "var(--font-th)", letterSpacing: 0 }}>{label}</span>
+              </button>
             ))}
           </div>
         </Field>
