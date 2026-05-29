@@ -37,14 +37,29 @@ function fmtDate(str) {
   return d.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
 }
 
+// คำนวณสถานะจากวันที่จริง (ใช้ร่วมกันทั้ง vendor และ admin)
+function computeAnnoStatus(closedAt, openedAt) {
+  if (!closedAt || !openedAt) return "draft";
+  const now = new Date();
+  const open = new Date(openedAt);
+  const close = new Date(closedAt);
+  if (now < open) return "draft";   // ยังไม่ถึงวันเปิด
+  if (now > close) return "closed";
+  const daysLeft = (close - now) / (1000 * 60 * 60 * 24);
+  return daysLeft <= 7 ? "closing" : "open";
+}
+
 // ── Landing / announcement page ─────────────────────────────────────────────
 function VendorLanding({ goto }) {
   const { groups, announcements, settings = {} } = useData();
   const annList = announcements || ANNOUNCEMENTS;
   const groupList = groups || VENDOR_CATEGORIES;
   console.log('🎯 VendorLanding:', { annList: annList?.length, groupList: groupList?.length });
-  const open = (annList || []).filter(a => a.status !== "closed");
-  const past = (annList || []).filter(a => a.status === "closed");
+
+  // ใช้ date-aware status ทุกครั้ง — ไม่ใช้ a.status จาก DB โดยตรง
+  const effStatus = (a) => computeAnnoStatus(a.closedAt, a.openedAt);
+  const open = (annList || []).filter(a => { const s = effStatus(a); return s === "open" || s === "closing"; });
+  const past = (annList || []).filter(a => effStatus(a) === "closed");
   const groupById = Object.fromEntries((groupList || []).map(g => [g.id, g]));
 
   return (
@@ -107,7 +122,7 @@ function VendorLanding({ goto }) {
                 {/* Status + ID */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14,
                   flexWrap: "wrap" }}>
-                  <StatusChip status={a.status} map={ANNC_STATUS_LABEL} />
+                  <StatusChip status={effStatus(a)} map={ANNC_STATUS_LABEL} />
                   <span style={{ fontSize: 12, color: "var(--text-3)",
                     fontFamily: "var(--font-mono)" }}>{a.id}</span>
                 </div>
