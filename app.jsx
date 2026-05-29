@@ -224,7 +224,8 @@ function AdminLoginPage({ onLogin }) {
       const admin = await window.getAdminByEmail(email.trim(), password);
       if (!admin) { setErr("อีเมลหรือรหัสผ่านไม่ถูกต้อง"); setLoading(false); return; }
       onLogin({ id: admin.id, email: admin.email, name: admin.name,
-        role: admin.role, permissions: admin.permissions || [] });
+        role: admin.role, permissions: admin.permissions || [],
+        must_change_password: !!admin.must_change_password });
     } catch (e) {
       console.error("Login error:", e);
       setErr("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
