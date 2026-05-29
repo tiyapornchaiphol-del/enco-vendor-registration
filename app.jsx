@@ -104,7 +104,8 @@ function ChangePasswordScreen({ adminUser, onDone }) {
     try {
       const { error } = await window.supabase.auth.updateUser({ password: pwd });
       if (error) throw error;
-      await window.updateAdmin(adminUser.id, { must_change_password: false });
+      // ใช้ SECURITY DEFINER function เพื่อ bypass RLS
+      await window.supabase.rpc('clear_must_change_password');
       await window.logAuditEvent?.('admin.first_login_password_changed', { email: adminUser.email });
       onDone();
     } catch (e) {
