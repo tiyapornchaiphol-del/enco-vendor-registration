@@ -223,9 +223,13 @@ function AdminLoginPage({ onLogin }) {
     try {
       const admin = await window.getAdminByEmail(email.trim(), password);
       if (!admin) { setErr("อีเมลหรือรหัสผ่านไม่ถูกต้อง"); setLoading(false); return; }
+      if (admin.must_change_password) {
+        // Reload ให้ checkAdminSession อ่านค่าจาก DB ใหม่ → แสดงหน้าเปลี่ยนรหัสผ่าน
+        window.location.reload();
+        return;
+      }
       onLogin({ id: admin.id, email: admin.email, name: admin.name,
-        role: admin.role, permissions: admin.permissions || [],
-        must_change_password: !!admin.must_change_password });
+        role: admin.role, permissions: admin.permissions || [] });
     } catch (e) {
       console.error("Login error:", e);
       setErr("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
