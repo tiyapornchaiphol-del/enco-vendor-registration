@@ -798,8 +798,17 @@ const DocChecklist = ({ form, compact = false }) => {
         <div style={{ display: "flex", flexDirection: "column" }}>
           {REQUIRED_DOCS.map(d => (
             <div key={d.id} style={itemStyle}>
-              <span style={dotStyle} />
-              <span>{d.th}</span>
+              <span style={{ ...dotStyle, background: d.required ? "var(--primary)" : "var(--text-3)" }} />
+              <span>
+                {d.th}
+                {!d.required && (
+                  <span style={{
+                    marginLeft: 6, fontSize: compact ? 10.5 : 11, fontWeight: 500,
+                    color: "var(--text-3)", background: "var(--line)",
+                    padding: "1px 6px", borderRadius: 999,
+                  }}>ไม่บังคับ</span>
+                )}
+              </span>
             </div>
           ))}
         </div>
