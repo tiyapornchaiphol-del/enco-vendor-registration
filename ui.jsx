@@ -29,6 +29,8 @@ const Icon = ({ name, size = 18, stroke = 1.6, style }) => {
     megaphone:   <><path d="M3 11v3l11 4V7L3 11z" /><path d="M14 8.5v8" /><path d="M18 9a3 3 0 0 1 0 6" /></>,
     logout:      <><path d="M9 5H5v14h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H10" /></>,
     sparkle:     <><path d="M12 3l1.5 5L19 9.5l-5.5 1.5L12 17l-1.5-6L5 9.5l5.5-1.5L12 3z" /></>,
+    menu:        <><path d="M3 6h18M3 12h18M3 18h18" /></>,
+    refresh:     <><path d="M4 12a8 8 0 0 1 14-5.3L20 8h-4" /><path d="M20 12a8 8 0 0 1-14 5.3L4 16h4" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
