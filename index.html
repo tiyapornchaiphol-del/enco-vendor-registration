@@ -192,6 +192,37 @@
   .btn-dl-text { display: inline; }
   @media (max-width: 520px) { .btn-dl-text { display: none; } }
 
+  /* ── Aurora background animation ── */
+  @keyframes aurora-move {
+    from { background-position: 50% 50%, 50% 50%; }
+    to   { background-position: 350% 50%, 350% 50%; }
+  }
+  .aurora-layer {
+    position: absolute; inset: -10px;
+    background-image:
+      repeating-linear-gradient(100deg,
+        rgba(255,255,255,.06) 0%,  rgba(255,255,255,.06) 7%,
+        transparent 10%, transparent 12%,
+        rgba(255,255,255,.06) 16%),
+      repeating-linear-gradient(100deg,
+        #60a5fa 10%, #818cf8 15%, #93c5fd 20%,
+        #c4b5fd 25%, #3b82f6 30%);
+    background-size: 300%, 200%;
+    background-position: 50% 50%, 50% 50%;
+    animation: aurora-move 60s linear infinite;
+    filter: blur(14px);
+    opacity: 0;
+    pointer-events: none;
+    will-change: background-position;
+    mask-image: radial-gradient(ellipse at 80% 5%, black 5%, transparent 65%);
+    -webkit-mask-image: radial-gradient(ellipse at 80% 5%, black 5%, transparent 65%);
+    animation: aurora-move 60s linear infinite, aurora-fade-in 1.5s ease forwards;
+  }
+  @keyframes aurora-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 0.5; }
+  }
+
   /* utility */
   .row { display: flex; align-items: center; gap: 12px; }
   .col { display: flex; flex-direction: column; gap: 12px; }
@@ -273,12 +304,12 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-<script src="supabase-client.js?v=20260528v"></script>
-<script type="text/babel" src="tweaks-panel.jsx?v=20260528v"></script>
-<script type="text/babel" src="data.jsx?v=20260528v"></script>
-<script type="text/babel" src="ui.jsx?v=20260528v"></script>
-<script type="text/babel" src="vendor.jsx?v=20260528v"></script>
-<script type="text/babel" src="admin.jsx?v=20260528v"></script>
-<script type="text/babel" src="app.jsx?v=20260528v"></script>
+<script src="supabase-client.js?v=20260528w"></script>
+<script type="text/babel" src="tweaks-panel.jsx?v=20260528w"></script>
+<script type="text/babel" src="data.jsx?v=20260528w"></script>
+<script type="text/babel" src="ui.jsx?v=20260528w"></script>
+<script type="text/babel" src="vendor.jsx?v=20260528w"></script>
+<script type="text/babel" src="admin.jsx?v=20260528w"></script>
+<script type="text/babel" src="app.jsx?v=20260528w"></script>
 </body>
 </html>

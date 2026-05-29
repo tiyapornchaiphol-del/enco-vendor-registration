@@ -72,6 +72,7 @@ function VendorLanding({ goto }) {
         color: "#fff", marginBottom: 32,
       }}>
         <div className="stripe-bg" style={{ position: "absolute", inset: 0, opacity: .22 }} />
+        <div className="aurora-layer" />
         <div style={{ position: "relative", maxWidth: 720 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8,
             padding: "5px 12px", background: "rgba(255,255,255,.16)",
