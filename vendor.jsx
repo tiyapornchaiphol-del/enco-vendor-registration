@@ -1044,8 +1044,7 @@ const StepReview = ({ form, consent, setConsent }) => {
             onChange={(e) => setConsent(e.target.checked)}
             style={{ accentColor: "var(--primary)", marginTop: 2 }} />
           <span style={{ color: "var(--text-2)" }}>
-            ข้าพเจ้ารับรองว่าข้อมูลและเอกสารที่ส่งทั้งหมดเป็นความจริง และยินยอมให้ EnCo ตรวจสอบข้อมูลตาม
-            <a href="#" style={{ color: "var(--primary)", textDecoration: "underline" }}> ระเบียบและเงื่อนไข</a>
+            ข้าพเจ้ารับรองว่าข้อมูลและเอกสารที่ส่งทั้งหมดเป็นความจริง และยินยอมให้ EnCo ตรวจสอบข้อมูลตามเงื่อนไข
           </span>
         </label>
       </div>
@@ -1111,7 +1110,6 @@ const SubmittedScreen = ({ goto, submissionId, form }) => (
         fontFamily: "var(--font-en)" }}>ขั้นตอนถัดไป</div>
       {[
         "ส่งเอกสารประกอบการสมัครมาทางอีเมลที่แจ้งไว้ด้านบน",
-        "ฝ่ายจัดซื้อจะตรวจสอบข้อมูลและเอกสาร ภายใน 5-7 วันทำการ",
         "ติดตามประกาศรายชื่อผู้ค้าที่ผ่านการคัดเลือกได้ที่หน้าทะเบียนรายชื่อผู้ค้า",
       ].map((t, i) => (
         <div key={i} style={{ display: "flex", gap: 12, padding: "8px 0", fontSize: 13.5 }}>

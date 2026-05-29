@@ -1,5 +1,24 @@
 // Admin pages: Dashboard, Submissions list, Submission detail, Announcements management
 
+// Download a file from URL using the original filename (no supabase URL shown)
+async function dlFile(url, filename) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("fetch failed");
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename || "file";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  } catch (_) {
+    window.open(url, "_blank");
+  }
+}
+
 // Export submissions to Excel using SheetJS
 // opts: { annoId, catFilter:[], splitByGroup:bool }
 function exportToExcel(rows, announcements, groups, opts = {}) {
@@ -1041,14 +1060,14 @@ function AdminAnnouncements({ goto }) {
     }
   };
   const deleteAnnouncement = async (id) => {
-    if (confirm(`ลบประกาศ ${id}?`)) {
+    if (confirm(`ลบประกาศ ${id}?\n\nการลบจะไม่สามารถกู้คืนได้`)) {
       try {
         await window.deleteAnnouncementInDb(id);
         setAnnouncements(announcements.filter(a => a.id !== id));
         window.logAuditEvent?.('announcement.delete', { id });
       } catch (error) {
         console.error('Error deleting announcement:', error);
-        alert('เกิดข้อผิดพลาดในการลบประกาศ');
+        alert('ลบไม่สำเร็จ: ' + (error?.message || JSON.stringify(error)) + '\n\nอาจต้องตรวจสอบ RLS Policy ใน Supabase');
       }
     }
   };
@@ -1359,18 +1378,14 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
                     {preqDoc ? (
                       <>
                         <Icon name="file" size={13} style={{ color: "oklch(38% 0.11 155)" }} />
-                        {preqDoc.url ? (
-                          <a href={preqDoc.url} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: 12, color: "oklch(38% 0.11 155)", fontWeight: 500,
-                              maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis",
-                              whiteSpace: "nowrap" }}>
-                            {preqDoc.name}
-                          </a>
-                        ) : (
-                          <span style={{ fontSize: 12, color: "oklch(38% 0.11 155)", fontWeight: 500 }}>
-                            {preqDoc.name}
-                          </span>
-                        )}
+                        <button
+                          onClick={() => dlFile(preqDoc.url, preqDoc.name)}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0,
+                            fontSize: 12, color: "oklch(38% 0.11 155)", fontWeight: 500,
+                            maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis",
+                            whiteSpace: "nowrap", textDecoration: "underline", textAlign: "left" }}>
+                          {preqDoc.name}
+                        </button>
                         <button className="btn btn-ghost btn-sm btn-icon"
                           onClick={() => removePreq(cid)}>
                           <Icon name="trash" size={12} />
@@ -1496,17 +1511,17 @@ function AdminGroups() {
     }
   };
   const remove = async (gid) => {
-    if (usageCount(gid) > 0) {
-      alert("ไม่สามารถลบกลุ่มงานที่ถูกใช้ในประกาศได้");
-      return;
-    }
-    if (confirm("ลบกลุ่มงานนี้?")) {
+    const use = usageCount(gid);
+    const msg = use > 0
+      ? `กลุ่มงานนี้ถูกใช้ใน ${use} ประกาศ\nยืนยันการลบ? (ประกาศที่เกี่ยวข้องอาจแสดงผลไม่ถูกต้อง)`
+      : "ยืนยันการลบกลุ่มงานนี้?";
+    if (confirm(msg)) {
       try {
         await window.deleteCategoryInDb(gid);
         setGroups(groups.filter(g => g.id !== gid));
       } catch (error) {
         console.error('Error deleting category:', error);
-        alert('เกิดข้อผิดพลาดในการลบกลุ่มงาน');
+        alert('ลบไม่สำเร็จ: ' + (error?.message || JSON.stringify(error)) + '\n\nอาจต้องตรวจสอบ RLS Policy ใน Supabase');
       }
     }
   };
