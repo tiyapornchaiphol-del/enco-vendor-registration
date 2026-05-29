@@ -1,4 +1,4 @@
-// Vendor-side pages: Landing (announcements), Registration form (multi-step), Status tracker
+﻿// Vendor-side pages: Landing (announcements), Registration form (multi-step), Status tracker
 
 function simDownload(filename, url) {
   if (url) { window.open(url, "_blank"); return; }
@@ -54,7 +54,6 @@ function VendorLanding({ goto }) {
   const { groups, announcements, settings = {} } = useData();
   const annList = announcements || ANNOUNCEMENTS;
   const groupList = groups || VENDOR_CATEGORIES;
-  console.log('🎯 VendorLanding:', { annList: annList?.length, groupList: groupList?.length });
 
   // ใช้ date-aware status ทุกครั้ง — ไม่ใช้ a.status จาก DB โดยตรง
   const effStatus = (a) => computeAnnoStatus(a.closedAt, a.openedAt);
@@ -510,7 +509,6 @@ function VendorForm({ goto, annoId }) {
 
       // ── 2. บันทึกข้อมูลใน Supabase Database (text เท่านั้น) ──
       setSubmitStep("กำลังบันทึกข้อมูล...");
-      console.log('📤 [submit] form.categories =', form.categories);
       const submissionData = {
         id,
         annoId: targetAnnc?.id || null,

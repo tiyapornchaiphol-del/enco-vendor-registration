@@ -1,4 +1,4 @@
-// Supabase Client Configuration
+﻿// Supabase Client Configuration
 const SUPABASE_URL = 'https://gpqfpxezejifxynzlcjn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwcWZweGV6ZWppZnh5bnpsY2puIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNTM5NDYsImV4cCI6MjA5NDkyOTk0Nn0.hocrr-JKKp3hiAsufTMmFH-WGEX58f4UyPmLW2MaEaY';
 
@@ -41,7 +41,6 @@ async function getSubmissionsFromDb() {
     // Transform database format to app format
     return (data || []).map(row => {
       const categories = parseCategories(row.category);
-      console.log(`📋 [submission ${row.id}] raw category =`, JSON.stringify(row.category), '→ parsed =', categories);
       return {
         id: row.id,
         annoId: row.anno_id,
@@ -79,7 +78,6 @@ async function getSubmissionsFromDb() {
 // Get all announcements
 async function getAnnouncementsFromDb() {
   try {
-    console.log('🔍 Fetching announcements from Supabase...');
     const { data, error } = await supabase
       .from('announcements')
       .select('*')
@@ -99,7 +97,6 @@ async function getAnnouncementsFromDb() {
       docs: row.docs || []
     }));
 
-    console.log('✅ Supabase announcements:', result.length, 'items');
     return result;
   } catch (error) {
     console.error('❌ Error fetching announcements, using fallback:', error);
@@ -153,7 +150,6 @@ async function createCategoryInDb(catData) {
       .single();
 
     if (error) throw error;
-    console.log('✅ Category created:', catData.id);
     return data;
   } catch (error) {
     console.error('❌ Error creating category:', error);
@@ -180,7 +176,6 @@ async function updateCategoryInDb(id, catData) {
       .single();
 
     if (error) throw error;
-    console.log('✅ Category updated:', id);
     return data;
   } catch (error) {
     console.error('❌ Error updating category:', error);
@@ -197,7 +192,6 @@ async function deleteCategoryInDb(id) {
       .eq('id', id);
 
     if (error) throw error;
-    console.log('✅ Category deleted:', id);
     return true;
   } catch (error) {
     console.error('❌ Error deleting category:', error);
@@ -219,7 +213,6 @@ async function createSubmissionInDb(submissionData) {
         category: (() => {
           const cats = submissionData.categories;
           const stored = Array.isArray(cats) ? JSON.stringify(cats) : (submissionData.category || '');
-          console.log('💾 [createSubmission] categories to store:', cats, '→ DB value:', stored);
           return stored;
         })(),
         address: submissionData.address,
@@ -243,7 +236,6 @@ async function createSubmissionInDb(submissionData) {
       .select();
 
     if (error) throw error;
-    console.log('Submission created:', data);
     return data[0];
   } catch (error) {
     console.error('Error creating submission:', error);
@@ -303,7 +295,6 @@ async function _getAdminProfile(userId) {
 // Login admin ผ่าน Supabase Auth (password hash โดย Supabase, ไม่เก็บ plaintext)
 async function getAdminByEmail(email, password) {
   try {
-    console.log('🔐 Authenticating admin:', email);
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.toLowerCase(),
       password,
@@ -311,11 +302,9 @@ async function getAdminByEmail(email, password) {
     if (error) { console.warn('⚠️ Auth failed:', error.message); return null; }
     const profile = await _getAdminProfile(data.user.id);
     if (!profile) {
-      console.warn('⚠️ ไม่พบ admin_profiles สำหรับ:', email);
       await supabase.auth.signOut();
       return null;
     }
-    console.log('✅ Admin authenticated:', email, '— Role:', profile.role);
     // Log successful login (fire-and-forget — session exists now)
     logAuditEvent('admin.login', { email: data.user.email, role: profile.role });
     return { id: data.user.id, email: data.user.email, ...profile, permissions: [] };
@@ -332,7 +321,6 @@ async function checkAdminSession() {
     if (!session) return null;
     const profile = await _getAdminProfile(session.user.id);
     if (!profile) return null;
-    console.log('✅ Admin session restored:', session.user.email);
     return { id: session.user.id, email: session.user.email, ...profile, permissions: [] };
   } catch (err) {
     console.error('❌ Session check error:', err);
@@ -343,7 +331,6 @@ async function checkAdminSession() {
 // Sign out admin
 async function signOutAdmin() {
   await supabase.auth.signOut();
-  console.log('👋 Admin signed out');
 }
 
 // Get all admin profiles (requires authenticated session)
@@ -371,7 +358,6 @@ async function updateAdmin(id, updates) {
       .select()
       .single();
     if (error) throw error;
-    console.log('✅ Admin updated:', id);
     return data;
   } catch (err) {
     console.error('❌ Error updating admin:', err);
@@ -389,7 +375,6 @@ async function deactivateAdmin(id) {
       .select()
       .single();
     if (error) throw error;
-    console.log('✅ Admin deactivated:', id);
     return data;
   } catch (err) {
     console.error('❌ Error deactivating admin:', err);
@@ -425,7 +410,6 @@ async function createAdminUserViaEdge(email, name, role, password) {
       role,
       password,
     });
-    console.log('✅ Admin user created via Edge Function:', email);
     return json;
   } catch (err) {
     console.error('❌ createAdminUserViaEdge error:', err);
@@ -441,7 +425,6 @@ async function resetAdminPasswordViaEdge(userId, newPassword) {
       userId,
       password: newPassword,
     });
-    console.log('✅ Admin password reset via Edge Function:', userId);
     return json;
   } catch (err) {
     console.error('❌ resetAdminPasswordViaEdge error:', err);
@@ -453,7 +436,6 @@ async function resetAdminPasswordViaEdge(userId, newPassword) {
 async function deleteAdminUserViaEdge(userId) {
   try {
     const json = await _callSmoothWorker({ action: 'delete_user', userId });
-    console.log('✅ Admin user deleted via Edge Function:', userId);
     return json;
   } catch (err) {
     console.error('❌ deleteAdminUserViaEdge error:', err);
@@ -494,7 +476,6 @@ async function uploadFileToStorage(file, folder = 'announcements') {
       .from('documents')
       .getPublicUrl(fileName);
 
-    console.log('✅ File uploaded:', file.name);
     return {
       name: file.name,
       size: formatFileSize(file.size),
@@ -514,7 +495,6 @@ async function deleteFileFromStorage(filePath) {
       .from('documents')
       .remove([filePath]);
     if (error) throw error;
-    console.log('✅ File deleted:', filePath);
     return true;
   } catch (error) {
     console.error('❌ Error deleting file:', error);
@@ -534,7 +514,6 @@ function formatFileSize(bytes) {
 // Create announcement
 async function createAnnouncementInDb(annoData) {
   try {
-    console.log('📝 Creating announcement:', annoData.id);
     const { data, error } = await supabase
       .from('announcements')
       .insert([{
@@ -552,7 +531,6 @@ async function createAnnouncementInDb(annoData) {
       .single();
 
     if (error) throw error;
-    console.log('✅ Announcement created:', annoData.id);
     return data;
   } catch (error) {
     console.error('❌ Error creating announcement:', error);
@@ -563,7 +541,6 @@ async function createAnnouncementInDb(annoData) {
 // Update announcement
 async function updateAnnouncementInDb(id, updates) {
   try {
-    console.log('✏️ Updating announcement:', id);
     const { data, error } = await supabase
       .from('announcements')
       .update(updates)
@@ -572,7 +549,6 @@ async function updateAnnouncementInDb(id, updates) {
       .single();
 
     if (error) throw error;
-    console.log('✅ Announcement updated:', id);
     return data;
   } catch (error) {
     console.error('❌ Error updating announcement:', error);
@@ -583,14 +559,12 @@ async function updateAnnouncementInDb(id, updates) {
 // Delete announcement
 async function deleteAnnouncementInDb(id) {
   try {
-    console.log('🗑️ Deleting announcement:', id);
     const { error } = await supabase
       .from('announcements')
       .delete()
       .eq('id', id);
 
     if (error) throw error;
-    console.log('✅ Announcement deleted:', id);
     return true;
   } catch (error) {
     console.error('❌ Error deleting announcement:', error);
@@ -636,7 +610,6 @@ async function createAvlDocumentInDb(docData) {
       .select()
       .single();
     if (error) throw error;
-    console.log('✅ AVL document created:', docData.name);
     return {
       id:         data.id,
       name:       data.name,
@@ -659,7 +632,6 @@ async function deleteAvlDocumentInDb(id) {
       .delete()
       .eq('id', id);
     if (error) throw error;
-    console.log('✅ AVL document deleted:', id);
     return true;
   } catch (err) {
     console.error('❌ Error deleting AVL document:', err);
@@ -692,7 +664,6 @@ async function getSiteSettingsFromDb() {
     if (error) throw error;
     return { ...DEFAULT_SETTINGS, ...(data?.data || {}) };
   } catch (err) {
-    console.warn('⚠️ site_settings table not found, using defaults:', err.message);
     return { ...DEFAULT_SETTINGS };
   }
 }
@@ -703,7 +674,6 @@ async function updateSiteSettingsInDb(newSettings) {
       .from('site_settings')
       .upsert({ id: 1, data: newSettings, updated_at: new Date() });
     if (error) throw error;
-    console.log('✅ Site settings updated');
     return true;
   } catch (err) {
     console.error('❌ Error updating site settings:', err);

@@ -1,4 +1,4 @@
-// Sample / seed data + i18n strings shared by vendor & admin views.
+﻿// Sample / seed data + i18n strings shared by vendor & admin views.
 
 // Categories and announcements are now stored in Supabase database
 // Empty arrays serve as fallback if database is unavailable
@@ -66,10 +66,6 @@ function useSupabaseData() {
         setLoading(true);
         setError(null);
 
-        console.log('📡 Loading data from Supabase...');
-        console.log('window.getSubmissionsFromDb:', typeof window.getSubmissionsFromDb);
-        console.log('window.getAnnouncementsFromDb:', typeof window.getAnnouncementsFromDb);
-        console.log('window.getCategoriesFromDb:', typeof window.getCategoriesFromDb);
 
         // Fetch all data from Supabase in parallel
         const [subsData, annData, catData, settingsData] = await Promise.all([
@@ -79,13 +75,6 @@ function useSupabaseData() {
           window.getSiteSettingsFromDb?.(),
         ]);
 
-        console.log('✅ Supabase data loaded:', {
-          subsData: subsData?.length,
-          annData: annData?.length,
-          catData: catData?.length,
-          settings: !!settingsData,
-        });
-
         setSubmissions(subsData || []);
         setAnnouncements(annData || []);
         setCategories(catData || []);
@@ -94,7 +83,6 @@ function useSupabaseData() {
         console.error('❌ Error loading Supabase data:', err);
         setError(err.message);
         // Fallback to hardcoded data if Supabase fails
-        console.log('⚠️ Using fallback hardcoded data');
         setSubmissions(SUBMISSIONS);
         setAnnouncements(ANNOUNCEMENTS);
         setCategories(VENDOR_CATEGORIES);
