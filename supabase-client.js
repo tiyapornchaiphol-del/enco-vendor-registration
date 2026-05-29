@@ -449,6 +449,18 @@ async function resetAdminPasswordViaEdge(userId, newPassword) {
   }
 }
 
+// ── ลบ admin user ผ่าน Edge Function ──────────────────────────────────────────
+async function deleteAdminUserViaEdge(userId) {
+  try {
+    const json = await _callSmoothWorker({ action: 'delete_user', userId });
+    console.log('✅ Admin user deleted via Edge Function:', userId);
+    return json;
+  } catch (err) {
+    console.error('❌ deleteAdminUserViaEdge error:', err);
+    throw err;
+  }
+}
+
 // ─── Storage Functions ───
 
 // Sanitize filename for Supabase Storage (ASCII-safe, no spaces)
@@ -724,6 +736,7 @@ Object.assign(window, {
   deactivateAdmin,
   createAdminUserViaEdge,
   resetAdminPasswordViaEdge,
+  deleteAdminUserViaEdge,
   getAvlDocumentsFromDb,
   createAvlDocumentInDb,
   deleteAvlDocumentInDb,

@@ -1088,13 +1088,23 @@ function AdminUsers() {
   const [showTempPwd, setShowTempPwd]     = React.useState(false);
   const [pwdCopied, setPwdCopied]         = React.useState(false);
   // ── Reset password modal ────────────────────────────────────────────────────
-  const [resetModal, setResetModal]       = React.useState(null); // { user }
+  const [resetModal, setResetModal]       = React.useState(null);
   const [resetPwd, setResetPwd]           = React.useState("");
   const [resetSaving, setResetSaving]     = React.useState(false);
   const [resetErr, setResetErr]           = React.useState("");
-  const [resetResult, setResetResult]     = React.useState(null); // { name, email, password }
+  const [resetResult, setResetResult]     = React.useState(null);
   const [showResetPwd, setShowResetPwd]   = React.useState(false);
   const [resetCopied, setResetCopied]     = React.useState(false);
+  // ── Delete user modal ───────────────────────────────────────────────────────
+  const [deleteModal, setDeleteModal]     = React.useState(null);
+  const [deleteSaving, setDeleteSaving]   = React.useState(false);
+  const [deleteErr, setDeleteErr]         = React.useState("");
+  // ── current session user id (ป้องกันลบตัวเอง) ─────────────────────────────
+  const [myId, setMyId]                   = React.useState(null);
+  React.useEffect(() => {
+    window.supabase.auth.getSession().then(({ data: { session } }) =>
+      setMyId(session?.user?.id || null));
+  }, []);
 
   const loadUsers = () => {
     setLoading(true);
@@ -1197,6 +1207,20 @@ function AdminUsers() {
     } finally { setAddSaving(false); }
   };
 
+  const doDeleteUser = async () => {
+    if (!deleteModal) return;
+    setDeleteSaving(true); setDeleteErr("");
+    try {
+      await window.deleteAdminUserViaEdge(deleteModal.id);
+      await window.logAuditEvent?.('admin_user.deleted', { target_id: deleteModal.id, name: deleteModal.name });
+      setUsers(users.filter(u => u.id !== deleteModal.id));
+      setDeleteModal(null);
+      showToast(`ลบบัญชี ${deleteModal.name} แล้ว`);
+    } catch (err) {
+      setDeleteErr(err?.message || "เกิดข้อผิดพลาด");
+    } finally { setDeleteSaving(false); }
+  };
+
   const rolePerms = ROLE_OPTIONS.find(r => r.value === form.role)?.perms || [];
 
   return (
@@ -1265,6 +1289,13 @@ function AdminUsers() {
                         onClick={() => toggleActive(u)}
                         style={{ color: u.is_active ? "var(--warn)" : "var(--success)" }}>
                         <Icon name={u.is_active ? "x" : "check"} size={14} />
+                      </button>
+                      <button className="btn btn-ghost btn-sm btn-icon"
+                        title={u.id === myId ? "ไม่สามารถลบบัญชีตัวเองได้" : "ลบผู้ใช้"}
+                        disabled={u.id === myId}
+                        onClick={() => { setDeleteModal(u); setDeleteErr(""); }}
+                        style={{ color: u.id === myId ? "var(--text-3)" : "var(--danger)", opacity: u.id === myId ? 0.35 : 1 }}>
+                        <Icon name="trash" size={14} />
                       </button>
                     </div>
                   </td>
@@ -1502,6 +1533,70 @@ function AdminUsers() {
               onClick={() => setCreatedResult(null)}>
               รับทราบและปิด
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete User Modal ── */}
+      {deleteModal && (
+        <div style={{ position:"fixed", inset:0, zIndex:999,
+          background:"rgba(0,0,0,.4)", backdropFilter:"blur(2px)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}
+          onClick={() => !deleteSaving && setDeleteModal(null)}>
+          <div className="card" style={{ width:"100%", maxWidth:440, padding:28 }}
+            onClick={e => e.stopPropagation()}>
+
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <h3 style={{ margin:0, fontSize:17, fontWeight:600, color:"var(--danger)" }}>ลบผู้ใช้งาน</h3>
+              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setDeleteModal(null)} disabled={deleteSaving}>
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+
+            {/* User info */}
+            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px",
+              background:"var(--danger-soft)", border:"1px solid oklch(85% 0.08 25)",
+              borderRadius:10, marginBottom:18 }}>
+              <Avatar name={deleteModal.name} size={36} />
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:600, fontSize:14 }}>{deleteModal.name}</div>
+                <div className="mono" style={{ fontSize:12, color:"var(--text-3)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{deleteModal.email}</div>
+              </div>
+              <span className="pill" style={{ background:"var(--line)", color:"var(--text-2)", flexShrink:0 }}>
+                {deleteModal.role}
+              </span>
+            </div>
+
+            <div style={{ fontSize:13.5, color:"var(--text-2)", lineHeight:1.7, marginBottom:18, padding:"12px 14px",
+              background:"var(--surface-2)", borderRadius:8, border:"1px solid var(--line)" }}>
+              ⚠️ การลบบัญชีนี้จะ<b>ลบทั้งข้อมูล Auth และ Profile</b> ออกจากระบบถาวร<br/>
+              ผู้ใช้จะไม่สามารถเข้าสู่ระบบได้อีก และ<b>ไม่สามารถกู้คืนได้</b>
+            </div>
+
+            {deleteErr && (
+              <div style={{ padding:"10px 14px", background:"var(--danger-soft)",
+                color:"oklch(42% 0.14 25)", borderRadius:8, fontSize:13,
+                display:"flex", gap:8, alignItems:"center", marginBottom:14 }}>
+                <Icon name="x" size={13} stroke={2.4} /> {deleteErr}
+              </div>
+            )}
+
+            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+              <button className="btn btn-ghost" onClick={() => setDeleteModal(null)} disabled={deleteSaving}>ยกเลิก</button>
+              <button onClick={doDeleteUser} disabled={deleteSaving}
+                style={{ display:"inline-flex", alignItems:"center", gap:8,
+                  height:40, padding:"0 16px", borderRadius:"var(--radius)",
+                  background:"var(--danger)", color:"#fff", border:"none",
+                  fontWeight:500, cursor: deleteSaving ? "not-allowed" : "pointer",
+                  opacity: deleteSaving ? 0.7 : 1, fontSize:14, transition:"all .15s" }}>
+                {deleteSaving
+                  ? <><span style={{ display:"inline-block", width:14, height:14,
+                      border:"2px solid rgba(255,255,255,.4)", borderTopColor:"#fff",
+                      borderRadius:"50%", animation:"spin .7s linear infinite" }} /> กำลังลบ...</>
+                  : <><Icon name="trash" size={14} /> ยืนยันลบผู้ใช้</>
+                }
+              </button>
+            </div>
           </div>
         </div>
       )}
