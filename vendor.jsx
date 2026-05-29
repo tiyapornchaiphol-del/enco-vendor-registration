@@ -257,25 +257,82 @@ function VendorLanding({ goto }) {
       ) : null}
 
       {/* Contact footer */}
-      <div className="card" style={{ padding: "20px 24px", display: "flex",
-        gap: 20, alignItems: "center", flexWrap: "wrap",
-        background: "var(--surface-2)" }}>
-        <div style={{ flex: 1, minWidth: 240 }}>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-            สอบถามข้อมูลเพิ่มเติม
-          </h3>
-          <p style={{ margin: "2px 0 0", color: "var(--text-2)", fontSize: 13 }}>
-            ติดต่อฝ่ายจัดซื้อ {settings.orgName || "EnCo"} สำหรับข้อมูลเกี่ยวกับการขึ้นทะเบียนคู่ค้า
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 24, fontSize: 13 }}>
-          <div>
-            <div style={{ fontSize: 11.5, color: "var(--text-3)" }}>โทรศัพท์</div>
-            <div className="mono" style={{ fontWeight: 500 }}>{settings.contactPhone || "02-123-4567 ต่อ 8801"}</div>
+      <div style={{
+        position: "relative", overflow: "hidden", borderRadius: 20,
+        background: "linear-gradient(135deg, var(--primary) 0%, oklch(32% 0.13 250) 100%)",
+        padding: "clamp(28px, 5vw, 44px) clamp(24px, 6vw, 52px)",
+        color: "#fff",
+      }}>
+        {/* stripe pattern */}
+        <div className="stripe-bg" style={{ position: "absolute", inset: 0, opacity: .15, pointerEvents: "none" }} />
+
+        <div style={{ position: "relative", display: "flex", gap: 32, flexWrap: "wrap", alignItems: "center" }}>
+          {/* Left — heading */}
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "4px 12px", background: "rgba(255,255,255,.15)",
+              borderRadius: 999, fontSize: 12, fontWeight: 500, marginBottom: 14 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />
+              ติดต่อเรา
+            </div>
+            <h3 style={{ margin: "0 0 8px", fontSize: "clamp(20px, 3vw, 26px)", fontWeight: 700, lineHeight: 1.3 }}>
+              สอบถามข้อมูลเพิ่มเติม
+            </h3>
+            <p style={{ margin: 0, fontSize: 14, opacity: .85, lineHeight: 1.7, maxWidth: 400 }}>
+              ฝ่ายจัดซื้อ {settings.orgName || "EnCo"} ยินดีให้ข้อมูลและตอบข้อซักถามเกี่ยวกับการขึ้นทะเบียนคู่ค้า
+            </p>
           </div>
-          <div>
-            <div style={{ fontSize: 11.5, color: "var(--text-3)" }}>อีเมล</div>
-            <div className="mono" style={{ fontWeight: 500 }}>{settings.contactEmail || "procurement.enco@energycomplex.co.th"}</div>
+
+          {/* Right — contact cards */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {/* Phone */}
+            <a href={`tel:${(settings.contactPhone || "").replace(/\s/g, "")}`}
+              style={{ display: "flex", alignItems: "center", gap: 14,
+                padding: "16px 22px", borderRadius: 14,
+                background: "rgba(255,255,255,.12)",
+                border: "1px solid rgba(255,255,255,.2)",
+                backdropFilter: "blur(8px)",
+                textDecoration: "none", color: "#fff",
+                transition: "background .15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.2)"}
+              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,.12)"}>
+              <div style={{ width: 40, height: 40, borderRadius: 10,
+                background: "rgba(255,255,255,.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                📞
+              </div>
+              <div>
+                <div style={{ fontSize: 11, opacity: .75, marginBottom: 3, fontWeight: 500, letterSpacing: ".06em", textTransform: "uppercase" }}>โทรศัพท์</div>
+                <div className="mono" style={{ fontSize: 15, fontWeight: 700, letterSpacing: ".02em" }}>
+                  {settings.contactPhone || "02-123-4567 ต่อ 8801"}
+                </div>
+              </div>
+            </a>
+
+            {/* Email */}
+            <a href={`mailto:${settings.contactEmail || "procurement.enco@energycomplex.co.th"}`}
+              style={{ display: "flex", alignItems: "center", gap: 14,
+                padding: "16px 22px", borderRadius: 14,
+                background: "rgba(255,255,255,.12)",
+                border: "1px solid rgba(255,255,255,.2)",
+                backdropFilter: "blur(8px)",
+                textDecoration: "none", color: "#fff",
+                transition: "background .15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.2)"}
+              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,.12)"}>
+              <div style={{ width: 40, height: 40, borderRadius: 10,
+                background: "rgba(255,255,255,.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                ✉️
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 11, opacity: .75, marginBottom: 3, fontWeight: 500, letterSpacing: ".06em", textTransform: "uppercase" }}>อีเมล</div>
+                <div className="mono" style={{ fontSize: 13, fontWeight: 700,
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>
+                  {settings.contactEmail || "procurement.enco@energycomplex.co.th"}
+                </div>
+              </div>
+            </a>
           </div>
         </div>
       </div>
