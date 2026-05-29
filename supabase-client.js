@@ -289,11 +289,15 @@ async function logAuditEvent(action, details = {}) {
 async function _getAdminProfile(userId) {
   const { data, error } = await supabase
     .from('admin_profiles')
-    .select('name, role, is_active')
+    .select('name, role, is_active, must_change_password')
     .eq('id', userId)
     .single();
   if (error || !data || !data.is_active) return null;
-  return { name: data.name, role: data.role };
+  return {
+    name: data.name,
+    role: data.role,
+    must_change_password: !!data.must_change_password,
+  };
 }
 
 // Login admin ผ่าน Supabase Auth (password hash โดย Supabase, ไม่เก็บ plaintext)
@@ -393,11 +397,41 @@ async function deactivateAdmin(id) {
   }
 }
 
-// หมายเหตุ: การสร้าง admin user ใหม่ต้องทำผ่าน Supabase Dashboard → Auth → Users
-// แล้ว INSERT INTO admin_profiles (id, name, role) VALUES ('uuid', 'ชื่อ', 'Role');
-async function createAdmin() {
-  console.warn('⚠️ กรุณาสร้าง admin ผ่าน Supabase Dashboard > Auth > Users');
-  return null;
+// ── สร้าง admin user ผ่าน Edge Function (ไม่ส่งอีเมล — admin กำหนด temp password เอง) ────
+async function createAdminUserViaEdge(email, name, role, password) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('ไม่พบ session กรุณาเข้าสู่ระบบใหม่');
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/smooth-worker`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        email: email.toLowerCase().trim(),
+        name:  name.trim(),
+        role,
+        password,
+      }),
+    });
+
+    const json = await res.json().catch(() => ({}));
+
+    if (res.status === 404) {
+      throw new Error('Edge Function ยังไม่ได้ deploy — กรุณา deploy "create-admin-user" ใน Supabase Dashboard → Edge Functions');
+    }
+    if (!res.ok) {
+      throw new Error(json.error || `เกิดข้อผิดพลาด (HTTP ${res.status})`);
+    }
+
+    console.log('✅ Admin user created via Edge Function:', email);
+    return json;
+  } catch (err) {
+    console.error('❌ createAdminUserViaEdge error:', err);
+    throw err;
+  }
 }
 
 // ─── Storage Functions ───
@@ -673,6 +707,7 @@ Object.assign(window, {
   getAllAdmins,
   updateAdmin,
   deactivateAdmin,
+  createAdminUserViaEdge,
   getAvlDocumentsFromDb,
   createAvlDocumentInDb,
   deleteAvlDocumentInDb,

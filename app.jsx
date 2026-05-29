@@ -60,6 +60,140 @@ class AppErrorBoundary extends React.Component {
   }
 }
 
+// ── Temp password generator (cryptographically random, meets all policy rules) ─
+function generateTempPassword() {
+  const upper = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+  const lower = 'abcdefghjkmnpqrstuvwxyz';
+  const nums  = '23456789';
+  const spec  = '!@#$%';
+  const all   = upper + lower + nums + spec;
+  const arr   = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  // Guarantee at least one of each required character class
+  const pwd = [
+    upper[arr[0] % upper.length],
+    lower[arr[1] % lower.length],
+    nums [arr[2] % nums.length],
+    spec [arr[3] % spec.length],
+  ];
+  for (let i = 4; i < 12; i++) pwd.push(all[arr[i] % all.length]);
+  // Fisher-Yates shuffle with the remaining random bytes
+  for (let i = pwd.length - 1; i > 0; i--) {
+    const j = arr[(i + 4) % arr.length] % (i + 1);
+    [pwd[i], pwd[j]] = [pwd[j], pwd[i]];
+  }
+  return pwd.join('');
+}
+
+// ── หน้าเปลี่ยนรหัสผ่านครั้งแรก (บังคับแสดงสำหรับ must_change_password = true) ─
+function ChangePasswordScreen({ adminUser, onDone }) {
+  const [pwd, setPwd]         = React.useState("");
+  const [pwd2, setPwd2]       = React.useState("");
+  const [err, setErr]         = React.useState("");
+  const [saving, setSaving]   = React.useState(false);
+  const [showPwd, setShowPwd] = React.useState(false);
+  const v = validatePassword(pwd);
+
+  const handleSave = async () => {
+    if (!v.ok) {
+      setErr("รหัสผ่านต้องมี 8+ ตัว ตัวพิมพ์ใหญ่ พิมพ์เล็ก ตัวเลข และอักขระพิเศษ");
+      return;
+    }
+    if (pwd !== pwd2) { setErr("รหัสผ่านไม่ตรงกัน"); return; }
+    setSaving(true); setErr("");
+    try {
+      const { error } = await window.supabase.auth.updateUser({ password: pwd });
+      if (error) throw error;
+      await window.updateAdmin(adminUser.id, { must_change_password: false });
+      await window.logAuditEvent?.('admin.first_login_password_changed', { email: adminUser.email });
+      onDone();
+    } catch (e) {
+      setErr(e?.message || "เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:"var(--bg)", display:"flex",
+      flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 16px" }}>
+      <div className="card fade-in" style={{ width:"100%", maxWidth:420, padding:"40px 36px" }}>
+
+        {/* Header */}
+        <div style={{ textAlign:"center", marginBottom:28 }}>
+          <div style={{ fontSize:44, marginBottom:12 }}>🔐</div>
+          <div style={{ fontSize:18, fontWeight:700, marginBottom:10 }}>ตั้งรหัสผ่านใหม่</div>
+          <div style={{ fontSize:13.5, color:"var(--text-2)", lineHeight:1.7,
+            padding:"8px 12px", background:"var(--primary-soft)", borderRadius:8,
+            border:"1px solid var(--primary-border)" }}>
+            สวัสดีคุณ <b>{adminUser.name}</b><br/>
+            กรุณาตั้งรหัสผ่านส่วนตัวก่อนเริ่มใช้งานระบบ
+          </div>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          {/* New password */}
+          <div>
+            <label style={{ fontSize:12.5, fontWeight:500, color:"var(--text-2)",
+              display:"block", marginBottom:6 }}>
+              รหัสผ่านใหม่ <span style={{ color:"var(--danger)" }}>*</span>
+            </label>
+            <div style={{ position:"relative" }}>
+              <input className="input" type={showPwd ? "text" : "password"} value={pwd}
+                onChange={e => { setPwd(e.target.value); setErr(""); }}
+                placeholder="••••••••" style={{ width:"100%", paddingRight:40 }} autoFocus />
+              <button type="button" onClick={() => setShowPwd(v => !v)} tabIndex={-1}
+                style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+                  background:"none", border:"none", cursor:"pointer",
+                  color:"var(--text-3)", padding:4, display:"flex", alignItems:"center" }}>
+                <Icon name="eye" size={15} />
+              </button>
+            </div>
+            <PasswordStrengthBar password={pwd} />
+          </div>
+
+          {/* Confirm password */}
+          <div>
+            <label style={{ fontSize:12.5, fontWeight:500, color:"var(--text-2)",
+              display:"block", marginBottom:6 }}>
+              ยืนยันรหัสผ่านใหม่ <span style={{ color:"var(--danger)" }}>*</span>
+            </label>
+            <input className="input" type={showPwd ? "text" : "password"} value={pwd2}
+              onChange={e => { setPwd2(e.target.value); setErr(""); }}
+              placeholder="••••••••" style={{ width:"100%" }}
+              onKeyDown={e => e.key === "Enter" && !saving && handleSave()} />
+            {pwd2 && pwd && (
+              <div style={{ fontSize:12, marginTop:5,
+                color: pwd === pwd2 ? "var(--success)" : "var(--danger)" }}>
+                {pwd === pwd2 ? "✓ รหัสผ่านตรงกัน" : "✕ รหัสผ่านไม่ตรงกัน"}
+              </div>
+            )}
+          </div>
+
+          {/* Error */}
+          {err && (
+            <div style={{ padding:"10px 14px", background:"var(--danger-soft)",
+              color:"oklch(42% 0.14 25)", borderRadius:8, fontSize:13,
+              display:"flex", gap:8, alignItems:"center" }}>
+              <Icon name="x" size={13} stroke={2.4} /> {err}
+            </div>
+          )}
+
+          <button className="btn btn-primary" onClick={handleSave}
+            disabled={saving || !v.ok || !pwd2 || pwd !== pwd2}
+            style={{ marginTop:4, height:44, fontSize:14.5 }}>
+            {saving
+              ? <><span style={{ display:"inline-block", width:16, height:16,
+                  border:"2px solid rgba(255,255,255,.4)", borderTopColor:"#fff",
+                  borderRadius:"50%", animation:"spin .7s linear infinite" }} /> กำลังบันทึก...</>
+              : "ตั้งรหัสผ่านและเข้าสู่ระบบ"
+            }
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
 // ── Admin Login Page (standalone full-page — accessed via #admin URL) ────────
 function AdminLoginPage({ onLogin }) {
   const ctx = useData();
@@ -320,6 +454,19 @@ function App() {
             setAdminUser({ ...account, loginAt: Date.now() });
             setAuthChecked(true);
             setPage("admin-dashboard");
+          }} />
+        </div>
+      </DataContext.Provider>
+    );
+  }
+
+  // ── บังคับเปลี่ยนรหัสผ่านก่อนเข้าใช้งาน (ผู้ใช้ใหม่ที่ admin สร้างให้) ────────
+  if (adminRoute && isAdmin && adminUser?.must_change_password) {
+    return (
+      <DataContext.Provider value={dataValue}>
+        <div data-density={t.density} data-dark={t.dark ? "true" : "false"}>
+          <ChangePasswordScreen adminUser={adminUser} onDone={() => {
+            setAdminUser(prev => ({ ...prev, must_change_password: false }));
           }} />
         </div>
       </DataContext.Provider>
@@ -906,8 +1053,6 @@ function PasswordStrengthBar({ password }) {
 }
 
 // ─── Admin Users (connected to Supabase) ──────────────────────────────────────
-const SUPABASE_USERS_URL = "https://supabase.com/dashboard/project/gpqfpxezejifxynzlcjn/auth/users";
-
 function AdminUsers() {
   const [users, setUsers]             = React.useState([]);
   const [loading, setLoading]         = React.useState(true);
@@ -918,6 +1063,14 @@ function AdminUsers() {
   const [togglingId, setTogglingId]   = React.useState(null);
   const [resettingId, setResettingId] = React.useState(null);
   const [toast, showToast]            = useToast();
+  // ── Add user modal ─────────────────────────────────────────────────────────
+  const [addModal, setAddModal]           = React.useState(false);
+  const [addForm, setAddForm]             = React.useState({});
+  const [addSaving, setAddSaving]         = React.useState(false);
+  const [addErr, setAddErr]               = React.useState("");
+  const [createdResult, setCreatedResult] = React.useState(null);
+  const [showTempPwd, setShowTempPwd]     = React.useState(false);
+  const [pwdCopied, setPwdCopied]         = React.useState(false);
 
   const loadUsers = () => {
     setLoading(true);
@@ -967,6 +1120,43 @@ function AdminUsers() {
     setResettingId(null);
   };
 
+  // ── Add user helpers ────────────────────────────────────────────────────────
+  const openAddModal = () => {
+    setAddForm({ email: "", name: "", role: "Reviewer", password: generateTempPassword() });
+    setAddModal(true);
+    setAddErr("");
+    setShowTempPwd(false);
+    setPwdCopied(false);
+  };
+
+  const regenPassword = () => setAddForm(f => ({ ...f, password: generateTempPassword() }));
+
+  const copyTempPwd = () => {
+    navigator.clipboard?.writeText(addForm.password || "").then(() => {
+      setPwdCopied(true);
+      setTimeout(() => setPwdCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  const createUser = async () => {
+    const { email, name, role, password } = addForm;
+    if (!email?.trim()) { setAddErr("กรุณากรอกอีเมล"); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setAddErr("รูปแบบอีเมลไม่ถูกต้อง"); return;
+    }
+    if (!name?.trim()) { setAddErr("กรุณากรอกชื่อ-นามสกุล"); return; }
+    setAddSaving(true); setAddErr("");
+    try {
+      await window.createAdminUserViaEdge(email, name, role, password);
+      setAddModal(false);
+      setCreatedResult({ email: email.trim(), name: name.trim(), role, password });
+      await window.logAuditEvent?.('admin_user.created', { email: email.trim(), name: name.trim(), role });
+      loadUsers();
+    } catch (err) {
+      setAddErr(err?.message || "เกิดข้อผิดพลาดในการสร้างผู้ใช้");
+    } finally { setAddSaving(false); }
+  };
+
   const rolePerms = ROLE_OPTIONS.find(r => r.value === form.role)?.perms || [];
 
   return (
@@ -980,17 +1170,18 @@ function AdminUsers() {
             <button className="btn btn-ghost btn-sm" onClick={loadUsers} title="รีเฟรชรายชื่อ">
               <Icon name="refresh" size={14} /> รีเฟรช
             </button>
-            <a href={SUPABASE_USERS_URL} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
+            <button className="btn btn-primary btn-sm" onClick={openAddModal}>
               <Icon name="plus" size={14} /> เพิ่มผู้ใช้
-            </a>
+            </button>
           </div>
         } />
 
       {/* Guide banner */}
       <div style={{ padding:"12px 16px", background:"var(--primary-soft)", border:"1px solid var(--primary-border)",
         borderRadius:10, marginBottom:20, fontSize:13, color:"var(--primary-ink)", lineHeight:1.75 }}>
-        <b>📋 วิธีเพิ่มผู้ใช้:</b> กดปุ่ม "เพิ่มผู้ใช้" → สร้างบัญชีใน Supabase → กลับมากด <b>รีเฟรช</b> — ผู้ใช้จะปรากฏอัตโนมัติ
-        จากนั้นกด ✏️ เพื่อแก้ชื่อ / บทบาทได้เลย &nbsp;·&nbsp; รีเซ็ตรหัสผ่านผ่านปุ่ม 🔑 (ส่งลิงก์ทางอีเมล)
+        <b>📋 วิธีเพิ่มผู้ใช้:</b> กดปุ่ม "เพิ่มผู้ใช้" → กรอกอีเมล ชื่อ บทบาท → ระบบสร้างบัญชีและ<b>รหัสผ่านชั่วคราว</b>ให้อัตโนมัติ
+        &nbsp;·&nbsp; แจ้ง email + รหัสผ่านชั่วคราวให้ผู้ใช้ → ผู้ใช้จะถูก<b>บังคับเปลี่ยนรหัสผ่าน</b>เมื่อ login ครั้งแรก
+        &nbsp;·&nbsp; แก้ชื่อ / บทบาทด้วยปุ่ม ✏️ &nbsp;·&nbsp; รีเซ็ตรหัสผ่านด้วยปุ่ม 🔑
       </div>
 
       <div className="card" style={{ overflow:"hidden" }}>
@@ -1114,6 +1305,176 @@ function AdminUsers() {
           </div>
         </div>
       )}
+
+      {/* ── Add User Modal ── */}
+      {addModal && (
+        <div style={{ position:"fixed", inset:0, zIndex:999,
+          background:"rgba(0,0,0,.4)", backdropFilter:"blur(2px)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}
+          onClick={() => !addSaving && setAddModal(false)}>
+          <div className="card" style={{ width:"100%", maxWidth:520, padding:28 }}
+            onClick={e => e.stopPropagation()}>
+
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
+              <h3 style={{ margin:0, fontSize:17, fontWeight:600 }}>เพิ่มผู้ใช้งานใหม่</h3>
+              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setAddModal(false)} disabled={addSaving}>
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              {/* Email */}
+              <div>
+                <label className="label" style={{ marginBottom:6 }}>อีเมล <span className="req">*</span></label>
+                <input className="input" type="email" value={addForm.email || ""}
+                  onChange={e => { setAddForm({ ...addForm, email: e.target.value }); setAddErr(""); }}
+                  placeholder="user@company.com" style={{ width:"100%" }} autoFocus disabled={addSaving} />
+              </div>
+
+              {/* Name */}
+              <div>
+                <label className="label" style={{ marginBottom:6 }}>ชื่อ-นามสกุล <span className="req">*</span></label>
+                <input className="input" value={addForm.name || ""}
+                  onChange={e => { setAddForm({ ...addForm, name: e.target.value }); setAddErr(""); }}
+                  placeholder="ชื่อ นามสกุล" style={{ width:"100%" }} disabled={addSaving} />
+              </div>
+
+              {/* Role */}
+              <div>
+                <label className="label" style={{ marginBottom:6 }}>บทบาท (Role)</label>
+                <select className="select" value={addForm.role || "Reviewer"}
+                  onChange={e => setAddForm({ ...addForm, role: e.target.value })}
+                  style={{ width:"100%" }} disabled={addSaving}>
+                  {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+              </div>
+
+              {/* Temp password */}
+              <div>
+                <label className="label" style={{ marginBottom:6 }}>รหัสผ่านชั่วคราว</label>
+                <div style={{ display:"flex", gap:6 }}>
+                  <div style={{ position:"relative", flex:1 }}>
+                    <input className="input"
+                      type={showTempPwd ? "text" : "password"}
+                      value={addForm.password || ""}
+                      readOnly
+                      style={{ width:"100%", paddingRight:40,
+                        fontFamily:"var(--font-mono)", letterSpacing:".04em" }} />
+                    <button type="button" onClick={() => setShowTempPwd(v => !v)} tabIndex={-1}
+                      style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+                        background:"none", border:"none", cursor:"pointer",
+                        color:"var(--text-3)", padding:4, display:"flex", alignItems:"center" }}>
+                      <Icon name="eye" size={15} />
+                    </button>
+                  </div>
+                  <button className="btn btn-ghost btn-sm" title="สร้างรหัสผ่านใหม่"
+                    onClick={regenPassword} disabled={addSaving}>
+                    🔄
+                  </button>
+                  <button className="btn btn-ghost btn-sm" title="คัดลอก"
+                    onClick={copyTempPwd} disabled={addSaving}
+                    style={{ minWidth:90 }}>
+                    {pwdCopied ? "✓ คัดลอกแล้ว" : "📋 คัดลอก"}
+                  </button>
+                </div>
+                <div className="help" style={{ marginTop:5 }}>
+                  ผู้ใช้จะถูกบังคับเปลี่ยนรหัสผ่านในครั้งแรกที่เข้าสู่ระบบ
+                </div>
+              </div>
+
+              {/* Error */}
+              {addErr && (
+                <div style={{ padding:"10px 14px", background:"var(--danger-soft)",
+                  color:"oklch(42% 0.14 25)", borderRadius:8, fontSize:13,
+                  display:"flex", gap:8, alignItems:"center" }}>
+                  <Icon name="x" size={13} stroke={2.4} /> {addErr}
+                </div>
+              )}
+
+              <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:4 }}>
+                <button className="btn btn-ghost" onClick={() => setAddModal(false)} disabled={addSaving}>ยกเลิก</button>
+                <button className="btn btn-primary" onClick={createUser} disabled={addSaving}>
+                  {addSaving
+                    ? <><span style={{ display:"inline-block", width:14, height:14,
+                        border:"2px solid rgba(255,255,255,.4)", borderTopColor:"#fff",
+                        borderRadius:"50%", animation:"spin .7s linear infinite" }} /> กำลังสร้าง...</>
+                    : <><Icon name="plus" size={14} /> สร้างผู้ใช้</>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Created Result Modal — แสดงรหัสผ่านชั่วคราวหลังสร้างสำเร็จ ── */}
+      {createdResult && (
+        <div style={{ position:"fixed", inset:0, zIndex:1000,
+          background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <div className="card" style={{ width:"100%", maxWidth:480, padding:32 }}>
+
+            {/* Header */}
+            <div style={{ textAlign:"center", marginBottom:24 }}>
+              <div style={{ fontSize:44, marginBottom:12 }}>✅</div>
+              <h3 style={{ margin:0, fontSize:18, fontWeight:700, marginBottom:8 }}>สร้างผู้ใช้สำเร็จ!</h3>
+              <div style={{ fontSize:13.5, color:"var(--text-2)", lineHeight:1.65 }}>
+                บัญชีสำหรับ <b>{createdResult.name}</b> ({createdResult.role}) ถูกสร้างแล้ว<br/>
+                กรุณาแจ้ง username + รหัสผ่านด้านล่างให้ผู้ใช้
+              </div>
+            </div>
+
+            {/* Credentials box */}
+            <div style={{ background:"var(--surface-2)", border:"1px solid var(--line)",
+              borderRadius:12, padding:"18px 20px", marginBottom:20 }}>
+
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:11, fontWeight:600, color:"var(--text-3)",
+                  textTransform:"uppercase", letterSpacing:".07em", marginBottom:6, fontFamily:"var(--font-en)" }}>
+                  Username (Email)
+                </div>
+                <div style={{ fontFamily:"var(--font-mono)", fontSize:13.5,
+                  color:"var(--text)", wordBreak:"break-all" }}>
+                  {createdResult.email}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize:11, fontWeight:600, color:"var(--text-3)",
+                  textTransform:"uppercase", letterSpacing:".07em", marginBottom:6, fontFamily:"var(--font-en)" }}>
+                  รหัสผ่านชั่วคราว
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ fontFamily:"var(--font-mono)", fontSize:18, fontWeight:700,
+                    color:"var(--primary-ink)", letterSpacing:".12em", flex:1 }}>
+                    {createdResult.password}
+                  </div>
+                  <button className="btn btn-ghost btn-sm"
+                    onClick={() => navigator.clipboard?.writeText(createdResult.password)
+                      .then(() => { /* copied silently */ }).catch(() => {})}>
+                    📋
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Warning */}
+            <div style={{ padding:"10px 14px", background:"var(--warn-soft)",
+              borderRadius:8, fontSize:12.5, color:"oklch(45% 0.12 70)",
+              marginBottom:20, lineHeight:1.65 }}>
+              ⚠️ <b>จดหรือคัดลอกรหัสผ่านนี้ก่อนปิดหน้าต่าง</b> — ระบบไม่สามารถแสดงซ้ำได้<br/>
+              ผู้ใช้จะถูกบังคับเปลี่ยนรหัสผ่านในครั้งแรกที่เข้าสู่ระบบ
+            </div>
+
+            <button className="btn btn-primary" style={{ width:"100%" }}
+              onClick={() => setCreatedResult(null)}>
+              รับทราบและปิด
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
