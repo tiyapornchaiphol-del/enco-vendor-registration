@@ -189,6 +189,16 @@ function ChangePasswordScreen({ adminUser, onDone }) {
               : "ตั้งรหัสผ่านและเข้าสู่ระบบ"
             }
           </button>
+
+          <button type="button" onClick={async () => {
+            await window.supabase.auth.signOut();
+            window.location.href = window.location.pathname + "#admin";
+            window.location.reload();
+          }} style={{ background:"none", border:"none", cursor:"pointer",
+            fontSize:12.5, color:"var(--text-3)", marginTop:4,
+            textDecoration:"underline", padding:0 }}>
+            ออกจากระบบ
+          </button>
         </div>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
