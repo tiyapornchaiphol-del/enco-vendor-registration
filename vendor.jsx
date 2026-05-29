@@ -174,7 +174,6 @@ function VendorLanding({ goto }) {
                           background: hasFile ? "var(--primary-soft)" : "var(--surface-2)",
                           borderRadius: 10,
                         }}>
-                          <CatIcon icon={g.icon} size={18} style={{ flexShrink: 0, color: "var(--primary)" }} />
                           <div style={{ flex: 1, minWidth: 80, overflow: "hidden" }}>
                             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)",
                               lineHeight: 1.4 }}>
@@ -693,10 +692,7 @@ const StepCategory = ({ form, setForm, annc }) => {
               <input type="checkbox" checked={checked} onChange={() => toggle(c.id)}
                 style={{ marginTop: 2, accentColor: "var(--primary)" }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <CatIcon icon={c.icon} size={18} />
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>{c.th}</span>
-                </div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{c.th}</div>
                 <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 4,
                   fontFamily: "var(--font-en)" }}>{c.en}</div>
                 {c.desc && (
@@ -841,7 +837,6 @@ const DocChecklist = ({ form, compact = false }) => {
                 <div style={{ fontWeight: 600, fontSize: compact ? 12.5 : 13,
                   color: "var(--text)", marginBottom: 6, display: "flex",
                   alignItems: "center", gap: 7 }}>
-                  <CatIcon icon={g.icon} size={compact ? 15 : 17} />
                   <span>{g.th}</span>
                 </div>
                 <div style={itemStyle}>

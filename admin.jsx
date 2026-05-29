@@ -234,7 +234,6 @@ function AdminDashboard({ goto }) {
               <div style={{ padding: "14px 20px", background: "var(--surface-2)",
                 borderBottom: "1px solid var(--line)",
                 display: "flex", gap: 12, alignItems: "center" }}>
-                <div style={{ fontSize: 22, lineHeight: 1, color: "var(--primary)" }}><CatIcon icon={g.icon} size={22} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 14.5,
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -466,7 +465,6 @@ function ExportModal({ onClose, announcements, submissions, groups }) {
                       checked={catFilter.includes(g.id)}
                       onChange={() => toggleCat(g.id)}
                       style={{ accentColor: "var(--primary)", width: 14, height: 14 }} />
-                    <CatIcon icon={g.icon} size={14} />
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis",
                       whiteSpace: "nowrap" }}>{g.th}</span>
                   </label>
@@ -530,7 +528,6 @@ function ExportModal({ onClose, announcements, submissions, groups }) {
                 {groupBreakdown.map(g => (
                   <div key={g.id} style={{ display: "flex", alignItems: "center",
                     gap: 8, fontSize: 12.5, color: "var(--text-2)" }}>
-                    <CatIcon icon={g.icon} size={13} />
                     <span style={{ flex: 1 }}>{g.th}</span>
                     <span className="num" style={{ fontWeight: 600, color: "var(--text)" }}>{g.count}</span>
                     <span style={{ color: "var(--text-3)" }}>ราย</span>
@@ -726,7 +723,6 @@ function AdminSubmissions({ goto }) {
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12,
               background: "var(--surface-2)", color: "var(--text-2)", fontWeight: 500,
               borderRadius: 20, padding: "3px 10px", border: "1px solid var(--line)" }}>
-              <CatIcon icon={allGroups.find(g => g.id === catFilter)?.icon} size={12} />
               {allGroups.find(g => g.id === catFilter)?.th || catFilter}
               <button onClick={() => setCatFilter("all")}
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 0,
@@ -1109,7 +1105,7 @@ function AdminAnnouncements({ goto }) {
                         <span key={cid} className="pill" style={{
                           background: "var(--surface-2)", color: "var(--text-2)",
                           fontSize: 11.5, padding: "2px 8px",
-                        }}><CatIcon icon={g.icon} size={13} /> {g.th}</span>
+                        }}>{g.th}</span>
                       );
                     })}
                     {(a.categories || []).length > 3 ? (
@@ -1299,7 +1295,6 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
                 }}>
                   <input type="checkbox" checked={checked} onChange={() => toggleCat(g.id)}
                     style={{ accentColor: "var(--primary)" }} />
-                  <CatIcon icon={g.icon} size={16} />
                   <span style={{ fontWeight: 500, lineHeight: 1.2,
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.th}</span>
                 </label>
@@ -1360,7 +1355,6 @@ const AnnouncementEditor = ({ id, onClose, onSave }) => {
                     background: preqDoc ? "var(--success-soft)" : "var(--surface)",
                     borderRadius: 8,
                   }}>
-                    <CatIcon icon={g.icon} size={16} />
                     <span style={{ flex: 1, fontWeight: 500, fontSize: 13 }}>{g.th}</span>
                     {preqDoc ? (
                       <>
@@ -1551,9 +1545,6 @@ function AdminGroups() {
                     color: tints.num, fontFamily: "var(--font-en)", letterSpacing: "-.02em" }}>
                     {g.num}
                   </div>
-                  <div style={{ width: 36, height: 36, borderRadius: 9,
-                    background: "rgba(255,255,255,.7)", display: "grid", placeItems: "center",
-                    fontSize: 20, color: tints.num }}><CatIcon icon={g.icon} size={20} /></div>
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--text)",
