@@ -180,6 +180,10 @@ function VendorLanding({ goto }) {
                               lineHeight: 1.4 }}>
                               {g.th}
                             </div>
+                            {g.desc && (
+                              <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 3,
+                                lineHeight: 1.55 }}>{g.desc}</div>
+                            )}
                             {hasFile && (
                               <div style={{ fontSize: 11, color: "var(--primary-ink)", marginTop: 1,
                                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -695,6 +699,10 @@ const StepCategory = ({ form, setForm, annc }) => {
                 </div>
                 <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 4,
                   fontFamily: "var(--font-en)" }}>{c.en}</div>
+                {c.desc && (
+                  <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 5,
+                    lineHeight: 1.55 }}>{c.desc}</div>
+                )}
                 <div style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 6 }}>
                   ขอผลงาน <b style={{ color: "var(--text-2)" }}>{c.worksRequired || 0}</b> ผลงาน
                 </div>
