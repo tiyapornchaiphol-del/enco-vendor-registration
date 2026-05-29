@@ -176,7 +176,7 @@ function VendorLanding({ goto }) {
                           <span style={{ fontSize: 18, flexShrink: 0 }}>{g.icon}</span>
                           <div style={{ flex: 1, minWidth: 80, overflow: "hidden" }}>
                             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)",
-                              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              lineHeight: 1.4 }}>
                               {g.th}
                             </div>
                             {hasFile && (
@@ -199,7 +199,7 @@ function VendorLanding({ goto }) {
                               title={`ดาวน์โหลด ${preqDoc.name}`}
                             >
                               <Icon name="download" size={13} />
-                              ดาวน์โหลด
+                              <span className="btn-dl-text">ดาวน์โหลด</span>
                             </button>
                           ) : (
                             <span style={{ fontSize: 12, color: "var(--text-3)",

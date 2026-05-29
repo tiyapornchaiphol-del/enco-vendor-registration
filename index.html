@@ -188,6 +188,10 @@
   /* focus visible */
   :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
 
+  /* ซ่อนข้อความปุ่มดาวน์โหลดบนมือถือ — แสดงแค่ icon */
+  .btn-dl-text { display: inline; }
+  @media (max-width: 520px) { .btn-dl-text { display: none; } }
+
   /* utility */
   .row { display: flex; align-items: center; gap: 12px; }
   .col { display: flex; flex-direction: column; gap: 12px; }
@@ -269,12 +273,12 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-<script src="supabase-client.js?v=20260528r"></script>
-<script type="text/babel" src="tweaks-panel.jsx?v=20260528r"></script>
-<script type="text/babel" src="data.jsx?v=20260528r"></script>
-<script type="text/babel" src="ui.jsx?v=20260528r"></script>
-<script type="text/babel" src="vendor.jsx?v=20260528r"></script>
-<script type="text/babel" src="admin.jsx?v=20260528r"></script>
-<script type="text/babel" src="app.jsx?v=20260528r"></script>
+<script src="supabase-client.js?v=20260528s"></script>
+<script type="text/babel" src="tweaks-panel.jsx?v=20260528s"></script>
+<script type="text/babel" src="data.jsx?v=20260528s"></script>
+<script type="text/babel" src="ui.jsx?v=20260528s"></script>
+<script type="text/babel" src="vendor.jsx?v=20260528s"></script>
+<script type="text/babel" src="admin.jsx?v=20260528s"></script>
+<script type="text/babel" src="app.jsx?v=20260528s"></script>
 </body>
 </html>
