@@ -31,6 +31,8 @@ const Icon = ({ name, size = 18, stroke = 1.6, style }) => {
     sparkle:     <><path d="M12 3l1.5 5L19 9.5l-5.5 1.5L12 17l-1.5-6L5 9.5l5.5-1.5L12 3z" /></>,
     menu:        <><path d="M3 6h18M3 12h18M3 18h18" /></>,
     refresh:     <><path d="M4 12a8 8 0 0 1 14-5.3L20 8h-4" /><path d="M20 12a8 8 0 0 1-14 5.3L4 16h4" /></>,
+    mail:        <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></>,
+    phone:       <><path d="M6.6 10.8a15.4 15.4 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 11.4 11.4 0 0 0 3.6.6 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.6 3.6a1 1 0 0 1-.25 1L6.6 10.8z" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"

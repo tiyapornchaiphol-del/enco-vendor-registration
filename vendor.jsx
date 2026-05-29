@@ -258,87 +258,29 @@ function VendorLanding({ goto }) {
       ) : null}
 
       {/* Contact footer */}
-      <div style={{
-        borderRadius: 20,
-        background: "linear-gradient(160deg, var(--primary-soft) 0%, var(--surface) 100%)",
-        border: "1px solid var(--primary-border)",
-        overflow: "hidden",
-      }}>
-        {/* Main section */}
-        <div style={{ padding: "clamp(32px, 6vw, 56px) clamp(24px, 6vw, 52px)", textAlign: "center" }}>
-
-          {/* Logo + org name */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <div style={{
-              width: 52, height: 52, borderRadius: 14,
-              background: "var(--primary)",
-              display: "grid", placeItems: "center",
-              boxShadow: "0 4px 14px -4px oklch(45% 0.13 250 / .35)",
-              overflow: "hidden", flexShrink: 0,
-            }}>
-              {settings.logoUrl
-                ? <img src={settings.logoUrl} alt={settings.orgName || "EnCo"}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                : <span style={{ color: "#fff", fontWeight: 800, fontSize: 22,
-                    fontFamily: "var(--font-en)" }}>{(settings.logoInitials || "E")}</span>
-              }
-            </div>
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontWeight: 800, fontSize: 20, color: "var(--text)", lineHeight: 1.2 }}>
-                {settings.orgName || "EnCo"}
-              </div>
-              <div style={{ fontSize: 12.5, color: "var(--text-3)", marginTop: 1 }}>
-                {settings.portalSubtitle || "Vendor Portal"}
-              </div>
-            </div>
-          </div>
-
-          {/* Tagline */}
-          <p style={{ margin: "0 auto 32px", maxWidth: 480, fontSize: 14.5,
-            color: "var(--text-2)", lineHeight: 1.8 }}>
-            {settings.orgFullName || "บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด"}<br />
-            ฝ่ายจัดซื้อยินดีให้ข้อมูลเกี่ยวกับการขึ้นทะเบียนคู่ค้า
-          </p>
-
-          {/* Contact chips */}
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <a href={`tel:${(settings.contactPhone || "").replace(/[\s-]/g, "")}`}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 10,
-                padding: "11px 20px", borderRadius: 999,
-                background: "var(--surface)", border: "1px solid var(--line)",
-                color: "var(--text)", textDecoration: "none", fontSize: 14, fontWeight: 500,
-                boxShadow: "var(--shadow-sm)", transition: "box-shadow .15s, border-color .15s",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = "var(--shadow)"; e.currentTarget.style.borderColor = "var(--primary-border)"; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = "var(--shadow-sm)"; e.currentTarget.style.borderColor = "var(--line)"; }}>
-              <span style={{ fontSize: 17 }}>📞</span>
-              <span>{settings.contactPhone || "02-123-4567 ต่อ 8801"}</span>
-            </a>
-
-            <a href={`mailto:${settings.contactEmail || "procurement.enco@energycomplex.co.th"}`}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 10,
-                padding: "11px 20px", borderRadius: 999,
-                background: "var(--surface)", border: "1px solid var(--line)",
-                color: "var(--text)", textDecoration: "none", fontSize: 14, fontWeight: 500,
-                boxShadow: "var(--shadow-sm)", transition: "box-shadow .15s, border-color .15s",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = "var(--shadow)"; e.currentTarget.style.borderColor = "var(--primary-border)"; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = "var(--shadow-sm)"; e.currentTarget.style.borderColor = "var(--line)"; }}>
-              <span style={{ fontSize: 17 }}>✉️</span>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 280 }}>
-                {settings.contactEmail || "procurement.enco@energycomplex.co.th"}
-              </span>
-            </a>
-          </div>
+      <div style={{ borderTop: "1px solid var(--line)", marginTop: 8,
+        padding: "28px 0 8px", textAlign: "center" }}>
+        <p style={{ margin: "0 0 14px", fontSize: 14, color: "var(--text-2)", lineHeight: 1.8 }}>
+          ติดต่อสอบถามข้อมูลที่ <b style={{ color: "var(--text)" }}>ส่วนบริหารงานจัดหา</b>
+        </p>
+        <div style={{ display: "flex", gap: 20, justifyContent: "center",
+          flexWrap: "wrap", fontSize: 14, color: "var(--text-2)" }}>
+          <a href="mailto:procurement.enco@energycomplex.co.th"
+            style={{ display: "flex", alignItems: "center", gap: 6,
+              color: "var(--primary-ink)", textDecoration: "none" }}>
+            <Icon name="mail" size={15} />
+            procurement.enco@energycomplex.co.th
+          </a>
+          <a href="tel:021401234"
+            style={{ display: "flex", alignItems: "center", gap: 6,
+              color: "var(--primary-ink)", textDecoration: "none" }}>
+            <Icon name="phone" size={15} />
+            02-140-1234
+          </a>
         </div>
-
-        {/* Copyright bar */}
-        <div style={{ borderTop: "1px solid var(--line)", padding: "14px 24px",
-          textAlign: "center", fontSize: 12.5, color: "var(--text-3)" }}>
-          {settings.orgFullName || "บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด"} · {settings.orgName || "EnCo"} © {new Date().getFullYear()}
-        </div>
+        <p style={{ margin: "20px 0 0", fontSize: 12, color: "var(--text-3)" }}>
+          © {new Date().getFullYear()} {settings.orgFullName || "บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด"}
+        </p>
       </div>
     </div>
   );
