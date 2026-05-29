@@ -1078,7 +1078,6 @@ function AdminUsers() {
   const [saving, setSaving]           = React.useState(false);
   const [formErr, setFormErr]         = React.useState("");
   const [togglingId, setTogglingId]   = React.useState(null);
-  const [resettingId, setResettingId] = React.useState(null);
   const [toast, showToast]            = useToast();
   // ── Add user modal ─────────────────────────────────────────────────────────
   const [addModal, setAddModal]           = React.useState(false);
@@ -1088,6 +1087,14 @@ function AdminUsers() {
   const [createdResult, setCreatedResult] = React.useState(null);
   const [showTempPwd, setShowTempPwd]     = React.useState(false);
   const [pwdCopied, setPwdCopied]         = React.useState(false);
+  // ── Reset password modal ────────────────────────────────────────────────────
+  const [resetModal, setResetModal]       = React.useState(null); // { user }
+  const [resetPwd, setResetPwd]           = React.useState("");
+  const [resetSaving, setResetSaving]     = React.useState(false);
+  const [resetErr, setResetErr]           = React.useState("");
+  const [resetResult, setResetResult]     = React.useState(null); // { name, email, password }
+  const [showResetPwd, setShowResetPwd]   = React.useState(false);
+  const [resetCopied, setResetCopied]     = React.useState(false);
 
   const loadUsers = () => {
     setLoading(true);
@@ -1122,19 +1129,35 @@ function AdminUsers() {
     setTogglingId(null);
   };
 
-  const sendResetEmail = async (u) => {
-    if (!u.email) { showToast("ผู้ใช้นี้ไม่มีอีเมลในระบบ", "error"); return; }
-    setResettingId(u.id);
+  const openResetModal = (u) => {
+    setResetModal(u);
+    setResetPwd(generateTempPassword());
+    setResetErr("");
+    setShowResetPwd(false);
+    setResetCopied(false);
+  };
+
+  const regenResetPwd = () => setResetPwd(generateTempPassword());
+
+  const copyResetPwd = () => {
+    navigator.clipboard?.writeText(resetPwd || "").then(() => {
+      setResetCopied(true);
+      setTimeout(() => setResetCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  const doResetPassword = async () => {
+    if (!resetModal) return;
+    setResetSaving(true); setResetErr("");
     try {
-      const { error } = await window.supabase.auth.resetPasswordForEmail(u.email, {
-        redirectTo: window.location.origin + window.location.pathname + "#admin",
-      });
-      if (error) throw error;
-      showToast(`ส่งลิงก์รีเซ็ตรหัสผ่านไปที่ ${u.email} แล้ว`);
+      await window.resetAdminPasswordViaEdge(resetModal.id, resetPwd);
+      await window.logAuditEvent?.('admin_user.password_reset', { target_id: resetModal.id, name: resetModal.name });
+      const result = { name: resetModal.name, email: resetModal.email, password: resetPwd };
+      setResetModal(null);
+      setResetResult(result);
     } catch (err) {
-      showToast("ส่งอีเมลไม่สำเร็จ: " + (err?.message || ""), "error");
-    }
-    setResettingId(null);
+      setResetErr(err?.message || "เกิดข้อผิดพลาด");
+    } finally { setResetSaving(false); }
   };
 
   // ── Add user helpers ────────────────────────────────────────────────────────
@@ -1232,10 +1255,9 @@ function AdminUsers() {
                       <button className="btn btn-ghost btn-sm btn-icon" title="แก้ไขชื่อ / บทบาท" onClick={() => openEdit(u)}>
                         <Icon name="edit" size={14} />
                       </button>
-                      <button className="btn btn-ghost btn-sm btn-icon" title="ส่งลิงก์รีเซ็ตรหัสผ่านทางอีเมล"
-                        disabled={resettingId === u.id} style={{ opacity: u.email ? 1 : 0.35 }}
-                        onClick={() => sendResetEmail(u)}>
-                        {resettingId === u.id ? "⏳" : "🔑"}
+                      <button className="btn btn-ghost btn-sm btn-icon" title="รีเซ็ตรหัสผ่าน (กำหนด temp password)"
+                        onClick={() => openResetModal(u)}>
+                        🔑
                       </button>
                       <button className="btn btn-ghost btn-sm btn-icon"
                         title={u.is_active ? "ระงับการใช้งาน" : "เปิดใช้งาน"}
@@ -1478,6 +1500,151 @@ function AdminUsers() {
 
             <button className="btn btn-primary" style={{ width:"100%" }}
               onClick={() => setCreatedResult(null)}>
+              รับทราบและปิด
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reset Password Modal ── */}
+      {resetModal && (
+        <div style={{ position:"fixed", inset:0, zIndex:999,
+          background:"rgba(0,0,0,.4)", backdropFilter:"blur(2px)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}
+          onClick={() => !resetSaving && setResetModal(null)}>
+          <div className="card" style={{ width:"100%", maxWidth:480, padding:28 }}
+            onClick={e => e.stopPropagation()}>
+
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
+              <h3 style={{ margin:0, fontSize:17, fontWeight:600 }}>รีเซ็ตรหัสผ่าน</h3>
+              <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setResetModal(null)} disabled={resetSaving}>
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+
+            {/* User info */}
+            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px",
+              background:"var(--surface-2)", border:"1px solid var(--line)", borderRadius:10, marginBottom:18 }}>
+              <Avatar name={resetModal.name} size={36} />
+              <div>
+                <div style={{ fontWeight:600, fontSize:14 }}>{resetModal.name}</div>
+                <div className="mono" style={{ fontSize:12, color:"var(--text-3)" }}>{resetModal.email}</div>
+              </div>
+              <span className="pill" style={{ marginLeft:"auto", background:"var(--primary-soft)", color:"var(--primary-ink)" }}>
+                {resetModal.role}
+              </span>
+            </div>
+
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              {/* Temp password */}
+              <div>
+                <label className="label" style={{ marginBottom:6 }}>รหัสผ่านชั่วคราวใหม่</label>
+                <div style={{ display:"flex", gap:6 }}>
+                  <div style={{ position:"relative", flex:1 }}>
+                    <input className="input"
+                      type={showResetPwd ? "text" : "password"}
+                      value={resetPwd}
+                      readOnly
+                      style={{ width:"100%", paddingRight:40,
+                        fontFamily:"var(--font-mono)", letterSpacing:".04em" }} />
+                    <button type="button" onClick={() => setShowResetPwd(v => !v)} tabIndex={-1}
+                      style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+                        background:"none", border:"none", cursor:"pointer",
+                        color:"var(--text-3)", padding:4, display:"flex", alignItems:"center" }}>
+                      <Icon name="eye" size={15} />
+                    </button>
+                  </div>
+                  <button className="btn btn-ghost btn-sm" title="สร้างรหัสผ่านใหม่"
+                    onClick={regenResetPwd} disabled={resetSaving}>🔄</button>
+                  <button className="btn btn-ghost btn-sm" title="คัดลอก"
+                    onClick={copyResetPwd} disabled={resetSaving}
+                    style={{ minWidth:90 }}>
+                    {resetCopied ? "✓ คัดลอกแล้ว" : "📋 คัดลอก"}
+                  </button>
+                </div>
+                <div className="help" style={{ marginTop:5 }}>
+                  ผู้ใช้จะถูกบังคับเปลี่ยนรหัสผ่านอีกครั้งในครั้งแรกที่เข้าสู่ระบบ
+                </div>
+              </div>
+
+              {resetErr && (
+                <div style={{ padding:"10px 14px", background:"var(--danger-soft)",
+                  color:"oklch(42% 0.14 25)", borderRadius:8, fontSize:13,
+                  display:"flex", gap:8, alignItems:"center" }}>
+                  <Icon name="x" size={13} stroke={2.4} /> {resetErr}
+                </div>
+              )}
+
+              <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:4 }}>
+                <button className="btn btn-ghost" onClick={() => setResetModal(null)} disabled={resetSaving}>ยกเลิก</button>
+                <button className="btn btn-primary" onClick={doResetPassword} disabled={resetSaving}>
+                  {resetSaving
+                    ? <><span style={{ display:"inline-block", width:14, height:14,
+                        border:"2px solid rgba(255,255,255,.4)", borderTopColor:"#fff",
+                        borderRadius:"50%", animation:"spin .7s linear infinite" }} /> กำลังรีเซ็ต...</>
+                    : <>🔑 ยืนยันรีเซ็ตรหัสผ่าน</>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reset Result Modal ── */}
+      {resetResult && (
+        <div style={{ position:"fixed", inset:0, zIndex:1000,
+          background:"rgba(0,0,0,.55)", backdropFilter:"blur(4px)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <div className="card" style={{ width:"100%", maxWidth:480, padding:32 }}>
+
+            <div style={{ textAlign:"center", marginBottom:24 }}>
+              <div style={{ fontSize:44, marginBottom:12 }}>🔑</div>
+              <h3 style={{ margin:0, fontSize:18, fontWeight:700, marginBottom:8 }}>รีเซ็ตรหัสผ่านสำเร็จ!</h3>
+              <div style={{ fontSize:13.5, color:"var(--text-2)", lineHeight:1.65 }}>
+                รหัสผ่านของ <b>{resetResult.name}</b> ถูกรีเซ็ตแล้ว<br/>
+                กรุณาแจ้ง username + รหัสผ่านใหม่ให้ผู้ใช้
+              </div>
+            </div>
+
+            <div style={{ background:"var(--surface-2)", border:"1px solid var(--line)",
+              borderRadius:12, padding:"18px 20px", marginBottom:20 }}>
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:11, fontWeight:600, color:"var(--text-3)",
+                  textTransform:"uppercase", letterSpacing:".07em", marginBottom:6, fontFamily:"var(--font-en)" }}>
+                  Username (Email)
+                </div>
+                <div style={{ fontFamily:"var(--font-mono)", fontSize:13.5, color:"var(--text)", wordBreak:"break-all" }}>
+                  {resetResult.email}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize:11, fontWeight:600, color:"var(--text-3)",
+                  textTransform:"uppercase", letterSpacing:".07em", marginBottom:6, fontFamily:"var(--font-en)" }}>
+                  รหัสผ่านชั่วคราว
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ fontFamily:"var(--font-mono)", fontSize:18, fontWeight:700,
+                    color:"var(--primary-ink)", letterSpacing:".12em", flex:1 }}>
+                    {resetResult.password}
+                  </div>
+                  <button className="btn btn-ghost btn-sm"
+                    onClick={() => navigator.clipboard?.writeText(resetResult.password).catch(() => {})}>
+                    📋
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding:"10px 14px", background:"var(--warn-soft)",
+              borderRadius:8, fontSize:12.5, color:"oklch(45% 0.12 70)",
+              marginBottom:20, lineHeight:1.65 }}>
+              ⚠️ <b>จดหรือคัดลอกรหัสผ่านนี้ก่อนปิดหน้าต่าง</b> — ระบบไม่สามารถแสดงซ้ำได้<br/>
+              ผู้ใช้จะถูกบังคับเปลี่ยนรหัสผ่านในครั้งแรกที่เข้าสู่ระบบ
+            </div>
+
+            <button className="btn btn-primary" style={{ width:"100%" }}
+              onClick={() => setResetResult(null)}>
               รับทราบและปิด
             </button>
           </div>

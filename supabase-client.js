@@ -397,39 +397,54 @@ async function deactivateAdmin(id) {
   }
 }
 
+// ── Helper: เรียก smooth-worker Edge Function ───────────────────────────────
+async function _callSmoothWorker(payload) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('ไม่พบ session กรุณาเข้าสู่ระบบใหม่');
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/smooth-worker`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (res.status === 404) throw new Error('Edge Function ยังไม่ได้ deploy — กรุณา deploy "smooth-worker" ใน Supabase Dashboard → Edge Functions');
+  if (!res.ok) throw new Error(json.error || `เกิดข้อผิดพลาด (HTTP ${res.status})`);
+  return json;
+}
+
 // ── สร้าง admin user ผ่าน Edge Function (ไม่ส่งอีเมล — admin กำหนด temp password เอง) ────
 async function createAdminUserViaEdge(email, name, role, password) {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('ไม่พบ session กรุณาเข้าสู่ระบบใหม่');
-
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/smooth-worker`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        email: email.toLowerCase().trim(),
-        name:  name.trim(),
-        role,
-        password,
-      }),
+    const json = await _callSmoothWorker({
+      action: 'create_user',
+      email: email.toLowerCase().trim(),
+      name:  name.trim(),
+      role,
+      password,
     });
-
-    const json = await res.json().catch(() => ({}));
-
-    if (res.status === 404) {
-      throw new Error('Edge Function ยังไม่ได้ deploy — กรุณา deploy "create-admin-user" ใน Supabase Dashboard → Edge Functions');
-    }
-    if (!res.ok) {
-      throw new Error(json.error || `เกิดข้อผิดพลาด (HTTP ${res.status})`);
-    }
-
     console.log('✅ Admin user created via Edge Function:', email);
     return json;
   } catch (err) {
     console.error('❌ createAdminUserViaEdge error:', err);
+    throw err;
+  }
+}
+
+// ── รีเซ็ตรหัสผ่าน admin ผ่าน Edge Function (ไม่ส่งอีเมล — admin กำหนด temp password เอง) ──
+async function resetAdminPasswordViaEdge(userId, newPassword) {
+  try {
+    const json = await _callSmoothWorker({
+      action: 'reset_password',
+      userId,
+      password: newPassword,
+    });
+    console.log('✅ Admin password reset via Edge Function:', userId);
+    return json;
+  } catch (err) {
+    console.error('❌ resetAdminPasswordViaEdge error:', err);
     throw err;
   }
 }
@@ -708,6 +723,7 @@ Object.assign(window, {
   updateAdmin,
   deactivateAdmin,
   createAdminUserViaEdge,
+  resetAdminPasswordViaEdge,
   getAvlDocumentsFromDb,
   createAvlDocumentInDb,
   deleteAvlDocumentInDb,
