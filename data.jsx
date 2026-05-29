@@ -28,6 +28,7 @@ const ANNC_STATUS_LABEL = {
   open:    { th: "เปิดรับสมัคร", en: "Open",          cls: "st-approved" },
   closing: { th: "ใกล้ปิดรับ",   en: "Closing Soon",  cls: "st-review"   },
   closed:  { th: "ปิดรับสมัคร",  en: "Closed",        cls: "st-draft"    },
+  draft:   { th: "ร่าง",         en: "Draft",          cls: "st-draft"    },
 };
 
 
