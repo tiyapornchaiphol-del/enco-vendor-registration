@@ -1176,13 +1176,6 @@ function AdminUsers() {
           </div>
         } />
 
-      {/* Guide banner */}
-      <div style={{ padding:"12px 16px", background:"var(--primary-soft)", border:"1px solid var(--primary-border)",
-        borderRadius:10, marginBottom:20, fontSize:13, color:"var(--primary-ink)", lineHeight:1.75 }}>
-        <b>📋 วิธีเพิ่มผู้ใช้:</b> กดปุ่ม "เพิ่มผู้ใช้" → กรอกอีเมล ชื่อ บทบาท → ระบบสร้างบัญชีและ<b>รหัสผ่านชั่วคราว</b>ให้อัตโนมัติ
-        &nbsp;·&nbsp; แจ้ง email + รหัสผ่านชั่วคราวให้ผู้ใช้ → ผู้ใช้จะถูก<b>บังคับเปลี่ยนรหัสผ่าน</b>เมื่อ login ครั้งแรก
-        &nbsp;·&nbsp; แก้ชื่อ / บทบาทด้วยปุ่ม ✏️ &nbsp;·&nbsp; รีเซ็ตรหัสผ่านด้วยปุ่ม 🔑
-      </div>
 
       <div className="card" style={{ overflow:"hidden" }}>
         {loading ? (
