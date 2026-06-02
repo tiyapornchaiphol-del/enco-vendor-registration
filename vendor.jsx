@@ -269,12 +269,11 @@ function VendorLanding({ goto }) {
             <Icon name="mail" size={15} />
             procurement.enco@energycomplex.co.th
           </a>
-          <a href="tel:021401234"
-            style={{ display: "flex", alignItems: "center", gap: 6,
-              color: "var(--primary-ink)", textDecoration: "none" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6,
+            color: "var(--primary-ink)" }}>
             <Icon name="phone" size={15} />
-            02-140-1234
-          </a>
+            02-140-1084, 02-140-1081 หรือ 02-140-1099
+          </span>
         </div>
         <p style={{ margin: "20px 0 0", fontSize: 12, color: "var(--text-3)" }}>
           © {new Date().getFullYear()} {settings.orgFullName || "บริษัท เอนเนอร์ยี่ คอมเพล็กซ์ จำกัด"}
