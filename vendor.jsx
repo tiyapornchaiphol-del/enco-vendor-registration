@@ -263,16 +263,16 @@ function VendorLanding({ goto }) {
         </p>
         <div style={{ display: "flex", gap: 20, justifyContent: "center",
           flexWrap: "wrap", fontSize: 14, color: "var(--text-2)" }}>
-          <a href="mailto:procurement.enco@energycomplex.co.th"
+          <a href={`mailto:${settings.contactEmail || "procurement.enco@energycomplex.co.th"}`}
             style={{ display: "flex", alignItems: "center", gap: 6,
               color: "var(--primary-ink)", textDecoration: "none" }}>
             <Icon name="mail" size={15} />
-            procurement.enco@energycomplex.co.th
+            {settings.contactEmail || "procurement.enco@energycomplex.co.th"}
           </a>
           <span style={{ display: "flex", alignItems: "center", gap: 6,
             color: "var(--primary-ink)" }}>
             <Icon name="phone" size={15} />
-            02-140-1084, 02-140-1081 หรือ 02-140-1099
+            {settings.contactPhone || "02-140-1084, 02-140-1081 หรือ 02-140-1099"}
           </span>
         </div>
         <p style={{ margin: "20px 0 0", fontSize: 12, color: "var(--text-3)" }}>
@@ -855,8 +855,10 @@ const DocChecklist = ({ form, compact = false }) => {
   );
 };
 
-const StepContact = ({ form, update, errors, pdpaConsent, setPdpaConsent }) => (
-  <div>
+const StepContact = ({ form, update, errors, pdpaConsent, setPdpaConsent }) => {
+  const { settings = {} } = useData();
+  const contactEmail = settings.contactEmail || "procurement.enco@energycomplex.co.th";
+  return <div>
     <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 600 }}>ผู้ติดต่อ</h3>
     <p style={{ margin: "0 0 24px", color: "var(--text-2)", fontSize: 14 }}>
       ระบุผู้ประสานงานหลัก เพื่อให้ EnCo ติดต่อกลับเรื่องการสมัคร
@@ -930,7 +932,7 @@ const StepContact = ({ form, update, errors, pdpaConsent, setPdpaConsent }) => (
             <span style={{
               fontFamily: "var(--font-mono)", fontWeight: 600,
               color: "var(--primary-ink)",
-            }}>procurement.enco@energycomplex.co.th</span>
+            }}>{contactEmail}</span>
           </div>
           <div style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 14 }}>
             <b>Subject:</b>{" "}
@@ -945,11 +947,12 @@ const StepContact = ({ form, update, errors, pdpaConsent, setPdpaConsent }) => (
       </div>
     </div>
   </div>
-);
+};
 
 
 const StepReview = ({ form, consent, setConsent }) => {
-  const { groups } = useData();
+  const { groups, settings = {} } = useData();
+  const contactEmail = settings.contactEmail || "procurement.enco@energycomplex.co.th";
   const groupList = groups || VENDOR_CATEGORIES;
   const cats = groupList.filter(c => form.categories.includes(c.id)).map(c => c.th);
   const Block = ({ title, children }) => (
@@ -1016,7 +1019,7 @@ const StepReview = ({ form, consent, setConsent }) => {
                 ส่งมาที่:{" "}
                 <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600,
                   color: "var(--primary-ink)" }}>
-                  procurement.enco@energycomplex.co.th
+                  {contactEmail}
                 </span>
               </div>
               <div style={{ fontSize: 12.5, color: "var(--text-2)", marginBottom: 14 }}>
@@ -1047,8 +1050,10 @@ const StepReview = ({ form, consent, setConsent }) => {
   );
 };
 
-const SubmittedScreen = ({ goto, submissionId, form }) => (
-  <div className="fade-in" style={{ maxWidth: 640, margin: "60px auto", textAlign: "center" }}>
+const SubmittedScreen = ({ goto, submissionId, form }) => {
+  const { settings = {} } = useData();
+  const contactEmail = settings.contactEmail || "procurement.enco@energycomplex.co.th";
+  return <div className="fade-in" style={{ maxWidth: 640, margin: "60px auto", textAlign: "center" }}>
     <div style={{
       width: 84, height: 84, margin: "0 auto 24px",
       borderRadius: "50%", background: "var(--success-soft)",
@@ -1083,7 +1088,7 @@ const SubmittedScreen = ({ goto, submissionId, form }) => (
             ส่งมาที่:{" "}
             <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600,
               color: "oklch(45% 0.12 70)" }}>
-              procurement.enco@energycomplex.co.th
+              {contactEmail}
             </span>
           </div>
           <div style={{ fontSize: 12.5, color: "var(--text-2)", marginBottom: 14 }}>
@@ -1121,8 +1126,8 @@ const SubmittedScreen = ({ goto, submissionId, form }) => (
       </button>
       <button className="btn btn-ghost" onClick={() => goto("landing")}>กลับหน้าหลัก</button>
     </div>
-  </div>
-);
+  </div>;
+};
 
 
 
