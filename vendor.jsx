@@ -178,10 +178,6 @@ function VendorLanding({ goto }) {
                               lineHeight: 1.4 }}>
                               {g.th}
                             </div>
-                            {g.desc && (
-                              <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 3,
-                                lineHeight: 1.55 }}>{g.desc}</div>
-                            )}
                             {hasFile && (
                               <div style={{ fontSize: 11, color: "var(--primary-ink)", marginTop: 1,
                                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
