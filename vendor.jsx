@@ -803,7 +803,7 @@ const DocChecklist = ({ form, compact = false }) => {
                     marginLeft: 6, fontSize: compact ? 10.5 : 11, fontWeight: 500,
                     color: "var(--text-3)", background: "var(--line)",
                     padding: "1px 6px", borderRadius: 999,
-                  }}>ไม่บังคับ</span>
+                  }}>ถ้ามี</span>
                 )}
               </span>
             </div>
@@ -939,7 +939,7 @@ const StepContact = ({ form, update, errors, pdpaConsent, setPdpaConsent }) => {
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5,
               background: "var(--surface)", padding: "2px 8px", borderRadius: 5,
               border: "1px solid var(--line)", color: "var(--text)" }}>
-              ลงทะเบียนคู่ค้า EnCo — {form.vendorName || "(ชื่อบริษัท)"}
+              ลงทะเบียนคู่ค้า EnCo
             </span>
           </div>
           <DocChecklist form={form} />
@@ -1027,7 +1027,7 @@ const StepReview = ({ form, consent, setConsent }) => {
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 12,
                   background: "var(--surface)", padding: "2px 7px", borderRadius: 5,
                   border: "1px solid var(--line)", color: "var(--text)" }}>
-                  ลงทะเบียนคู่ค้า EnCo — {form.vendorName || "(ชื่อบริษัท)"}
+                  ลงทะเบียนคู่ค้า EnCo
                 </span>
               </div>
               <DocChecklist form={form} compact />
@@ -1096,7 +1096,7 @@ const SubmittedScreen = ({ goto, submissionId, form }) => {
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 12,
               background: "var(--surface)", padding: "2px 7px", borderRadius: 5,
               border: "1px solid var(--line)", color: "var(--text)" }}>
-              ลงทะเบียนคู่ค้า EnCo — (ระบุชื่อบริษัท)
+              ลงทะเบียนคู่ค้า EnCo
             </span>
           </div>
           {form && <DocChecklist form={form} compact />}
